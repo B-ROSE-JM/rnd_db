@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - R&D Platform{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Overview Dashboard</h1>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px;">
+
+    <div class="card">
+        <h3 style="color: var(--text-muted); font-size: 0.875rem; text-transform: uppercase;">Total Materials</h3>
+        <p style="font-size: 2rem; font-weight: 700; margin-top: 8px;">{{ materials_count|default:"0" }}</p>
+    </div>
+
+    <div class="card">
+        <h3 style="color: var(--text-muted); font-size: 0.875rem; text-transform: uppercase;">Active Formulations</h3>
+        <p style="font-size: 2rem; font-weight: 700; margin-top: 8px;">{{ formulations_count|default:"0" }}</p>
+    </div>
+
+    <div class="card">
+        <h3 style="color: var(--text-muted); font-size: 0.875rem; text-transform: uppercase;">Experiment Datasets</h3>
+        <p style="font-size: 2rem; font-weight: 700; margin-top: 8px;">{{ experiments_count|default:"0" }}</p>
+    </div>
+
+</div>
+
+<div class="card" style="margin-top: 24px;">
+    <h2 style="margin-bottom: 24px;">Experiment Statistics</h2>
+
+    {% if experiments_count > 0 %}
+    <div style="display: flex; gap: 40px; align-items: flex-start;">
+        <div style="width: 400px; height: 400px;">
+            <canvas id="testTypeChart"></canvas>
+        </div>
+        <div style="flex: 1;">
+            <h3 style="color: var(--text-main); margin-bottom: 16px;">Test Type Distribution</h3>
+            <p style="color: var(--text-muted); line-height: 1.6;">
+                This chart visualizes the distribution of various experimental tests conducted across all formulations.
+                As you log more data, this chart will dynamically update to reflect the latest R&D activities.
+            </p>
+            <div style="margin-top: 24px;">
+                <a href="{% url 'experiments:add' %}" class="btn-primary" style="display: inline-block;">+ Log New
+                    Data</a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 40px; border: 2px dashed var(--border-color); border-radius: 8px;">
+        <h3 style="color: var(--text-main); margin-bottom: 12px;">Get Started with Data Logging</h3>
+        <p style="color: var(--text-muted); margin-bottom: 24px;">Log your first experiment to see visualizations on
+            this dashboard.</p>
+        <a href="{% url 'materials:add' %}" class="btn-primary" style="display: inline-block;">Create Raw Material
+            First</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if experiments_count > 0 %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('testTypeChart').getContext('2d');
+
+        // Parse Django template variables safely to JS arrays
+        const labels = {{ chart_labels| safe
+    }};
+    const data = {{ chart_data| safe }};
+
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    '#4F46E5', '#10B981', '#F59E0B', '#EF4444',
+                    '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'
+                ],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        font: { family: "'Inter', sans-serif", size: 12 }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

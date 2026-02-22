@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+
+{% block title %}Log Experiment - R&D Platform{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <a href="{% url 'experiments:list' %}"
+        style="color: var(--text-muted); text-decoration: none; font-size: 0.875rem;">&larr; Back to Experiments</a>
+    <h1 class="page-title" style="margin-top: 12px; margin-bottom: 0;">{% if experiment %}Edit Experimental Data{% else %}Log Experimental Data{% endif %}</h1>
+    <p style="color: var(--text-muted); margin-top: 8px;">Record test results and attach raw data files for a specific
+        formulation.</p>
+</div>
+
+<div class="card" style="max-width: 900px;">
+    <!-- Note: enctype="multipart/form-data" is required for file uploads -->
+    <form method="POST"
+        action="{% if experiment %}{% url 'experiments:edit' experiment.id %}{% else %}{% url 'experiments:add' %}{% endif %}"
+        enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <!-- Formulation Setup -->
+        <div style="margin-bottom: 32px;">
+            <h3 style="margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">1.
+                Select Target Formulation</h3>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">Formulation
+                    (Level 2)</label>
+                <select name="formulation_id" required
+                    style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: white;">
+                    <option value="">Select the formulation tested...</option>
+                    {% for form in formulations %}
+                    {% if experiment and experiment.formulation_id == form.id %}
+                    <option value="{{ form.id }}" selected>{{ form.name }}</option>
+                    {% else %}
+                    <option value="{{ form.id }}">{{ form.name }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">Test Type /
+                    Category</label>
+                <input type="text" name="test_type" required value="{{ experiment.test_type|default:'' }}"
+                    style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
+                    placeholder="e.g. Tensile Strength Test, Viscosity Check">
+            </div>
+        </div>
+
+        <!-- 2. Conditions Logger -->
+        <div style="margin-bottom: 32px;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0;">2. 실험 조건 (Experiment Conditions)</h3>
+                <button type="button" id="addCondBtn"
+                    style="background-color: #F3F4F6; color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500;">
+                    + Add Condition
+                </button>
+            </div>
+
+            <div id="conditions-container">
+                <!-- Pre-populated existing condition keys & values (if editing) -->
+                {% for field in cond_fields %}
+                <div class="field-group"
+                    style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center; padding: 12px; background-color: #F0FDF4; border: 1px solid #DCFCE7; border-radius: 6px;">
+                    <div style="flex: 1;">
+                        <input type="text" name="condition_keys[]" value="{{ field.key }}" readonly
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: #E5E7EB; color: #6B7280; cursor: not-allowed;">
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="text" name="condition_values[]" placeholder="Value (Leave empty to skip)"
+                            value="{{ field.val }}"
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                    </div>
+                    <button type="button" class="remove-btn"
+                        style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
+                </div>
+                {% endfor %}
+            </div>
+            <p id="cond-empty-state"
+                style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 20px; background-color: #F8FAFC; border-radius: 6px; border: 1px dashed var(--border-color); {% if cond_fields %}display: none;{% endif %}">
+                No conditions added. Add environment settings (e.g., Temperature, Operator).
+            </p>
+        </div>
+
+        <!-- 3. Results Logger -->
+        <div style="margin-bottom: 32px;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0;">3. 실험 결과 (Log Key Metrics)</h3>
+                <button type="button" id="addResultBtn"
+                    style="background-color: #F3F4F6; color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500;">
+                    + Add Metric
+                </button>
+            </div>
+
+            <div id="results-container">
+                <!-- Pre-populated existing result keys & values -->
+                {% for field in res_fields %}
+                <div class="field-group"
+                    style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center; padding: 12px; background-color: #F5F3FF; border: 1px solid #EDE9FE; border-radius: 6px;">
+                    <div style="flex: 1;">
+                        <input type="text" name="result_keys[]" value="{{ field.key }}" readonly
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: #E5E7EB; color: #6B7280; cursor: not-allowed;">
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="text" name="result_values[]" placeholder="Value (Leave empty to skip)"
+                            value="{{ field.val }}"
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                    </div>
+                    <button type="button" class="remove-btn"
+                        style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
+                </div>
+                {% endfor %}
+            </div>
+            <p id="res-empty-state"
+                style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 20px; background-color: #F8FAFC; border-radius: 6px; border: 1px dashed var(--border-color); {% if res_fields %}display: none;{% endif %}">
+                No metrics added. Add key test results (e.g., "Max Load", "345 MPa").
+            </p>
+        </div>
+
+        <!-- 4. Image Upload -->
+        <div style="margin-bottom: 32px;">
+            <h3 style="margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">4. Image
+                Attachment (Optional)</h3>
+
+            {% if existing_images_html %}
+            <div style="margin-bottom: 16px;">
+                <h4 style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 8px;">Existing Images</h4>
+                <div style="display: flex; flex-direction: column; gap: 8px;">{{ existing_images_html|safe }}</div>
+            </div>
+            {% endif %}
+
+            <div
+                style="margin-bottom: 12px; padding: 24px; border: 2px dashed var(--border-color); border-radius: 8px; text-align: center; background-color: #F8FAFC;">
+                <label style="display: block; cursor: pointer;">
+                    <span
+                        style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--primary-color);">Click
+                        to upload Microscope / SEM Imagery (Multiple allowed)</span>
+                    <input type="file" name="image_files" id="image_files_input" multiple
+                        style="width: 100%; max-width: 300px; margin: 0 auto; display: block;" accept="image/*">
+                </label>
+            </div>
+            <div id="image-desc-container" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Dynamic per-image description inputs will be appended here -->
+            </div>
+        </div>
+
+        <!-- 5. Raw Data Attachment -->
+        <div style="margin-bottom: 32px;">
+            <h3 style="margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">5. Raw
+                Data Attachment (Optional)</h3>
+
+            {% if existing_raw_html %}
+            <div style="margin-bottom: 16px;">
+                <h4 style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 8px;">Existing Raw Data Files</h4>
+                <div style="display: flex; flex-direction: column; gap: 8px;">{{ existing_raw_html|safe }}</div>
+            </div>
+            {% endif %}
+
+            <div
+                style="margin-bottom: 12px; padding: 24px; border: 2px dashed var(--border-color); border-radius: 8px; text-align: center; background-color: #F9FAFB;">
+                <label style="display: block; cursor: pointer;">
+                    <span
+                        style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--primary-color);">Click
+                        to upload Raw Data / Docs (Multiple allowed)</span>
+                    <input type="file" name="raw_data_files" id="raw_data_files_input" multiple
+                        style="width: 100%; max-width: 300px; margin: 0 auto; display: block;"
+                        accept=".csv,.txt,.xlsx,.xls,.pdf,.doc,.docx,.ppt,.pptx">
+                </label>
+            </div>
+            <div id="raw-data-desc-container" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Dynamic per-file description inputs will be appended here -->
+            </div>
+        </div>
+
+        <div
+            style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-color); padding-top: 24px;">
+            <a href="{% url 'experiments:list' %}"
+                style="padding: 10px 20px; color: var(--text-main); text-decoration: none; font-weight: 500;">Cancel</a>
+            <button type="submit" class="btn-primary" style="padding: 10px 24px;">Log Data</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- 1. Conditions Builder ---
+        const condContainer = document.getElementById('conditions-container');
+        const condEmptyState = document.getElementById('cond-empty-state');
+        const addCondBtn = document.getElementById('addCondBtn');
+        let condCount = condContainer.querySelectorAll('.field-group').length;
+
+        // Attach listeners to pre-populated rows
+        condContainer.querySelectorAll('.field-group').forEach(group => {
+            group.querySelector('.remove-btn').addEventListener('click', function () {
+                condContainer.removeChild(group);
+                condCount--;
+                if (condCount === 0) condEmptyState.style.display = 'block';
+            });
+        });
+
+        addCondBtn.addEventListener('click', function () {
+            condEmptyState.style.display = 'none';
+
+            const fieldGroup = document.createElement('div');
+            fieldGroup.style.cssText = 'display: flex; gap: 12px; margin-bottom: 12px; align-items: center; padding: 12px; background-color: #F0FDF4; border: 1px solid #DCFCE7; border-radius: 6px;';
+
+            fieldGroup.innerHTML = `
+                <div style="flex: 1;">
+                    <input type="text" name="condition_keys[]" placeholder="Condition Name (e.g. Temp)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                </div>
+                <div style="flex: 1;">
+                    <input type="text" name="condition_values[]" placeholder="Value (e.g. 25C)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                </div>
+                <button type="button" class="remove-btn" style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
+            `;
+
+            condContainer.appendChild(fieldGroup);
+            condCount++;
+
+            fieldGroup.querySelector('.remove-btn').addEventListener('click', function () {
+                condContainer.removeChild(fieldGroup);
+                condCount--;
+                if (condCount === 0) condEmptyState.style.display = 'block';
+            });
+        });
+
+        // --- 2. Results Builder ---
+        const resContainer = document.getElementById('results-container');
+        const resEmptyState = document.getElementById('res-empty-state');
+        const addResBtn = document.getElementById('addResultBtn');
+        let resCount = resContainer.querySelectorAll('.field-group').length;
+
+        // Attach listeners to pre-populated rows
+        resContainer.querySelectorAll('.field-group').forEach(group => {
+            group.querySelector('.remove-btn').addEventListener('click', function () {
+                resContainer.removeChild(group);
+                resCount--;
+                if (resCount === 0) resEmptyState.style.display = 'block';
+            });
+        });
+
+        addResBtn.addEventListener('click', function () {
+            resEmptyState.style.display = 'none';
+
+            const fieldGroup = document.createElement('div');
+            fieldGroup.style.cssText = 'display: flex; gap: 12px; margin-bottom: 12px; align-items: center; padding: 12px; background-color: #F5F3FF; border: 1px solid #EDE9FE; border-radius: 6px;';
+
+            fieldGroup.innerHTML = `
+                <div style="flex: 1;">
+                    <input type="text" name="result_keys[]" placeholder="Metric Name (e.g. Yield)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                </div>
+                <div style="flex: 1;">
+                    <input type="text" name="result_values[]" placeholder="Value (e.g. 45.2 MPa)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                </div>
+                <button type="button" class="remove-btn" style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
+            `;
+
+            resContainer.appendChild(fieldGroup);
+            resCount++;
+
+            fieldGroup.querySelector('.remove-btn').addEventListener('click', function () {
+                resContainer.removeChild(fieldGroup);
+                resCount--;
+                if (resCount === 0) resEmptyState.style.display = 'block';
+            });
+        });
+
+        // --- 3. Dynamic Raw Data Descriptions ---
+        const rawDataInput = document.getElementById('raw_data_files_input');
+        const rawDataDescContainer = document.getElementById('raw-data-desc-container');
+
+        rawDataInput.addEventListener('change', function () {
+            rawDataDescContainer.innerHTML = ''; // Clear previous inputs
+
+            if (this.files && this.files.length > 0) {
+                Array.from(this.files).forEach(file => {
+                    const inputDiv = document.createElement('div');
+                    inputDiv.innerHTML = `
+                        <input type="text" name="raw_data_descs[]" 
+                            placeholder="Description for: ${file.name} (Optional)"
+                            style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background-color: white;">
+                    `;
+                    rawDataDescContainer.appendChild(inputDiv);
+                });
+            }
+        });
+
+        // --- 4. Dynamic Image Captions ---
+        const imageInput = document.getElementById('image_files_input');
+        const imageDescContainer = document.getElementById('image-desc-container');
+
+        imageInput.addEventListener('change', function () {
+            imageDescContainer.innerHTML = ''; // Clear previous inputs
+
+            if (this.files && this.files.length > 0) {
+                Array.from(this.files).forEach(file => {
+                    const inputDiv = document.createElement('div');
+                    inputDiv.innerHTML = `
+                        <input type="text" name="image_descs[]" 
+                            placeholder="Caption for: ${file.name} (Optional)"
+                            style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background-color: white;">
+                    `;
+                    imageDescContainer.appendChild(inputDiv);
+                });
+            }
+        });
+    });
+</script>
+{% endblock %}

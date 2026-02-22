@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+
+{% block title %}Raw Materials - R&D Platform{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h1 class="page-title" style="margin-bottom: 0;">Raw Materials</h1>
+    <a href="{% url 'materials:add' %}" class="btn-primary">+ Add Material</a>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); background-color: #F9FAFB;">
+        <input type="text" id="material-search-input" placeholder="Search materials..."
+            style="padding: 8px 12px; width: 300px; border: 1px solid var(--border-color); border-radius: 6px;">
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead
+            style="background-color: #F9FAFB; color: var(--text-muted); font-size: 0.875rem; border-bottom: 1px solid var(--border-color);">
+            <tr>
+                <th style="padding: 12px 24px; font-weight: 500;">Name</th>
+                <th style="padding: 12px 24px; font-weight: 500;">Type</th>
+                <th style="padding: 12px 24px; font-weight: 500;">Added On</th>
+                <!-- Dynamic Columns -->
+                {% for key in custom_keys %}
+                <th style="padding: 12px 24px; font-weight: 500;"><span
+                        style="color:var(--primary-color);">[Custom]</span> {{ key|title }}</th>
+                {% endfor %}
+                <th style="padding: 12px 24px; font-weight: 500;">Images</th>
+                <th style="padding: 12px 24px; font-weight: 500;">Raw Data</th>
+                <th style="padding: 12px 24px; font-weight: 500; text-align: right;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mat in materials %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 16px 24px; font-weight: 500;">{{ mat.name }}</td>
+                <td style="padding: 16px 24px;">
+                    <span
+                        style="background-color: #E0E7FF; color: #3730A3; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                        {{ mat.material_type }}
+                    </span>
+                </td>
+                <td style="padding: 16px 24px; color: var(--text-muted);">{{ mat.created_at|date:"Y-m-d" }}</td>
+
+                {% for key in custom_keys %}
+                <td style="padding: 16px 24px;">
+                    {% for k, v in mat.custom_attributes.items %}
+                    {% if k == key %}{{ v }}{% endif %}
+                    {% endfor %}
+                </td>
+                {% endfor %}
+
+                <td style="padding: 16px 24px;">
+                    {% if mat.images.all %}
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button type="button" class="gallery-trigger-btn"
+                            data-images='[{% for img in mat.images.all %}{"url":"{{ img.image.url|escapejs }}", "desc":"{{ img.description|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                            style="background: none; border: 1px solid #BFDBFE; color: #2563EB; font-size: 0.8125rem; font-weight: 500; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background-color 0.2s;">
+                            <i class="fas fa-images"></i>
+                            View {{ mat.images.count }} Image{{ mat.images.count|pluralize }}
+                        </button>
+                    </div>
+                    {% else %}
+                    <span style="color: #9CA3AF; font-size: 0.875rem; font-style: italic;">No images</span>
+                    {% endif %}
+                </td>
+
+                <td style="padding: 16px 24px;">
+                    {% if mat.raw_files.all %}
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button type="button" class="raw-data-trigger-btn"
+                            data-files='[{% for r_file in mat.raw_files.all %}{"url":"{{ r_file.file.url|escapejs }}", "name":"{{ r_file.description|default:r_file.file.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                            style="background: none; border: 1px solid #C7D2FE; color: #4338CA; font-size: 0.8125rem; font-weight: 500; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background-color 0.2s; white-space: nowrap;">
+                            <i class="fas fa-file-download"></i>
+                            View {{ mat.raw_files.count }} File{{ mat.raw_files.count|pluralize }}
+                        </button>
+                    </div>
+                    {% else %}
+                    <span style="color: #9CA3AF; font-size: 0.875rem; font-style: italic;">No files</span>
+                    {% endif %}
+                </td>
+
+                <td style="padding: 16px 24px; text-align: right;">
+                    <a href="{% url 'materials:edit' mat.id %}"
+                        style="color: var(--primary-color); text-decoration: none; font-weight: 500; margin-right: 12px;">Edit</a>
+                    <a href="#" style="color: #EF4444; text-decoration: none; font-weight: 500;">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                    No materials found. Add one to get started.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Custom Raw Data Modal -->
+<div id="raw-data-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+
+    <div
+        style="background-color: white; border-radius: 8px; width: 90%; max-width: 500px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;">
+        <div style="position: absolute; top: 16px; right: 20px; cursor: pointer; color: #9CA3AF; font-size: 1.5rem;"
+            id="raw-data-close">&times;</div>
+
+        <h3
+            style="margin-top: 0; color: #111827; margin-bottom: 20px; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px; font-size: 1.25rem;">
+            Attached Raw Data</h3>
+
+        <ul id="raw-data-list"
+            style="list-style-type: none; padding: 0; margin: 0; max-height: 50vh; overflow-y: auto;">
+        </ul>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- Search Filter Logic ---
+        const searchInput = document.getElementById('material-search-input');
+        // Select all rows inside the tbody
+        const tableRows = document.querySelectorAll('table tbody tr');
+
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function () {
+                const query = this.value.toLowerCase();
+
+                tableRows.forEach(row => {
+                    // Skip the "empty state" row if it exists
+                    if (row.cells.length === 1 && row.cells[0].colSpan > 1) return;
+
+                    // Search within the first column (Name) and second column (Type)
+                    const nameCell = row.cells[0]?.textContent.toLowerCase() || '';
+                    const typeCell = row.cells[1]?.textContent.toLowerCase() || '';
+
+                    if (nameCell.includes(query) || typeCell.includes(query)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        const rawModal = document.getElementById('raw-data-modal');
+        const rawList = document.getElementById('raw-data-list');
+        const rawClose = document.getElementById('raw-data-close');
+
+        document.querySelectorAll('.raw-data-trigger-btn').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                rawList.innerHTML = '';
+
+                try {
+                    const rawData = this.getAttribute('data-files');
+                    const files = JSON.parse(rawData);
+
+                    if (files.length === 0) {
+                        rawList.innerHTML = '<li style="color: #6B7280; padding: 12px 0;">No files attached.</li>';
+                    } else {
+                        files.forEach(file => {
+                            let displayName = file.name;
+                            if (displayName.includes('/') || displayName.includes('\\')) {
+                                displayName = displayName.split('/').pop().split('\\').pop();
+                            }
+
+                            const li = document.createElement('li');
+                            li.style.cssText = 'padding: 12px 0; border-bottom: 1px solid #F3F4F6;';
+                            li.innerHTML = `
+                            <a href="${file.url}" target="_blank" style="color: #2563EB; text-decoration: none; display: flex; align-items: center; gap: 8px; font-weight: 500;">
+                                <i class="fas fa-file-csv" style="color: #10B981; font-size: 1.2rem;"></i> 
+                                <span style="word-break: break-all;">${displayName}</span>
+                            </a>
+                        `;
+                            rawList.appendChild(li);
+                        });
+                    }
+
+                    rawModal.style.display = 'flex';
+                } catch (err) {
+                    console.error('Error parsing file array', err);
+                }
+            });
+        });
+
+        rawClose.addEventListener('click', () => rawModal.style.display = 'none');
+        rawModal.addEventListener('click', (e) => {
+            if (e.target === rawModal) rawModal.style.display = 'none';
+        });
+    });
+</script>
+
+<div id="image-gallery-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="position: absolute; top: 20px; right: 30px; cursor: pointer; color: white; font-size: 2rem;"
+        id="gallery-close">&times;</div>
+
+    <div
+        style="display: flex; align-items: center; justify-content: center; width: 100%; max-width: 1200px; padding: 0 40px; position: relative;">
+        <button id="gallery-prev"
+            style="background: none; border: none; color: white; font-size: 4rem; cursor: pointer; position: absolute; left: 20px; transition: color 0.2s;">
+            &#10094;
+        </button>
+
+        <img id="gallery-image" src=""
+            style="max-height: 80vh; max-width: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <div id="gallery-caption"
+            style="position: absolute; bottom: -40px; color: white; text-align: center; width: 100%; font-size: 1.1rem;">
+        </div>
+
+        <button id="gallery-next"
+            style="background: none; border: none; color: white; font-size: 4rem; cursor: pointer; position: absolute; right: 20px; transition: color 0.2s;">
+            &#10095;
+        </button>
+    </div>
+
+    <div id="gallery-counter" style="color: white; margin-top: 50px; font-size: 1.1rem; font-weight: 500;"></div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('image-gallery-modal');
+        const modalImg = document.getElementById('gallery-image');
+        const caption = document.getElementById('gallery-caption');
+        const closeBtn = document.getElementById('gallery-close');
+        const prevBtn = document.getElementById('gallery-prev');
+        const nextBtn = document.getElementById('gallery-next');
+        const counter = document.getElementById('gallery-counter');
+
+        let currentImages = [];
+        let currentIndex = 0;
+
+        // Open Modal
+        document.querySelectorAll('.gallery-trigger-btn').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                try {
+                    const rawData = this.getAttribute('data-images');
+                    currentImages = JSON.parse(rawData);
+                } catch (err) {
+                    currentImages = [];
+                    console.error('Error parsing image array', err);
+                }
+
+                if (currentImages.length > 0) {
+                    currentIndex = 0;
+                    updateModalImage();
+                    modal.style.display = 'flex';
+                }
+            });
+        });
+
+        function updateModalImage() {
+            modalImg.src = currentImages[currentIndex].url;
+            caption.innerText = currentImages[currentIndex].desc || '';
+            counter.innerText = `${currentIndex + 1} / ${currentImages.length}`;
+
+            prevBtn.style.opacity = currentImages.length > 1 ? '1' : '0.3';
+            prevBtn.style.cursor = currentImages.length > 1 ? 'pointer' : 'default';
+
+            nextBtn.style.opacity = currentImages.length > 1 ? '1' : '0.3';
+            nextBtn.style.cursor = currentImages.length > 1 ? 'pointer' : 'default';
+        }
+
+        // Navigation
+        prevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentImages.length > 1) {
+                currentIndex = (currentIndex > 0) ? currentIndex - 1 : currentImages.length - 1;
+                updateModalImage();
+            }
+        });
+
+        nextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentImages.length > 1) {
+                currentIndex = (currentIndex < currentImages.length - 1) ? currentIndex + 1 : 0;
+                updateModalImage();
+            }
+        });
+
+        // Close Modal
+        closeBtn.addEventListener('click', () => modal.style.display = 'none');
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.style.display = 'none';
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (modal.style.display === 'flex') {
+                if (e.key === 'Escape') modal.style.display = 'none';
+                if (e.key === 'ArrowLeft') prevBtn.click();
+                if (e.key === 'ArrowRight') nextBtn.click();
+            }
+        });
+    });
+</script>
+{% endblock %}

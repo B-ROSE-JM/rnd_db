@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Formulations - R&D Platform{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+        <h1 class="page-title" style="margin-bottom: 0;">Formulations & Conditions</h1>
+        <p style="color: var(--text-muted); margin-top: 8px;">Manage mixtures and recipes composed of raw materials.</p>
+    </div>
+    <a href="{% url 'formulations:add' %}" class="btn-primary">+ Add Formulation</a>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); background-color: #F9FAFB;">
+        <input type="text" id="formulation-search-input" placeholder="Search formulations..."
+            style="padding: 8px 12px; width: 300px; border: 1px solid var(--border-color); border-radius: 6px;">
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead
+            style="background-color: #F9FAFB; color: var(--text-muted); font-size: 0.875rem; border-bottom: 1px solid var(--border-color);">
+            <tr>
+                <th style="padding: 12px 24px; font-weight: 500;">Name</th>
+                <th style="padding: 12px 24px; font-weight: 500; width: 30%;">Ingredients</th>
+                <!-- Dynamic Condition Columns -->
+                {% for key in condition_keys %}
+                <th style="padding: 12px 24px; font-weight: 500;">
+                    <span style="color:#10B981;">[Condition]</span> <span>{{ key|title }}</span>
+                </th>
+                {% endfor %}
+                <th style="padding: 12px 24px; font-weight: 500; text-align: right;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for form in formulations %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 16px 24px; font-weight: 600; color: var(--primary-color);">{{ form.name }}</td>
+                <td style="padding: 16px 24px;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        {% for ingredient in form.ingredients.all %}
+                        <span
+                            style="background-color: #F3F4F6; color: var(--text-main); font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-color);">
+                            {{ ingredient.material.name }} ({{ ingredient.ratio_or_amount }}{{ ingredient.unit }})
+                        </span>
+                        {% empty %}
+                        <span style="color: var(--text-muted); font-size: 0.875rem;">None</span>
+                        {% endfor %}
+                    </div>
+                </td>
+
+                {% for key in condition_keys %}
+                <td style="padding: 16px 24px;">
+                    {% for k, v in form.conditions.items %}
+                    {% if k == key %}{{ v }}{% endif %}
+                    {% endfor %}
+                </td>
+                {% endfor %}
+
+                <td style="padding: 16px 24px; text-align: right;">
+                    <a href="{% url 'formulations:edit' form.id %}"
+                        style="color: var(--primary-color); text-decoration: none; font-weight: 500; margin-right: 12px;">Edit</a>
+                    <a href="#" style="color: #EF4444; text-decoration: none; font-weight: 500;">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                    No formulations found. Create your first mixture recipe.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- Search Filter Logic ---
+        const searchInput = document.getElementById('formulation-search-input');
+        const tableRows = document.querySelectorAll('table tbody tr');
+
+        if (searchInput) {
+            searchInput.addEventListener('keyup', function () {
+                const query = this.value.toLowerCase();
+
+                tableRows.forEach(row => {
+                    // Skip the "empty state" row if it exists
+                    if (row.cells.length === 1 && row.cells[0].colSpan > 1) return;
+
+                    // Search within the first column (Name) and second column (Ingredients text)
+                    const nameCell = row.cells[0]?.textContent.toLowerCase() || '';
+                    const ingredientsCell = row.cells[1]?.textContent.toLowerCase() || '';
+
+                    if (nameCell.includes(query) || ingredientsCell.includes(query)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}
+
+{% endblock %}

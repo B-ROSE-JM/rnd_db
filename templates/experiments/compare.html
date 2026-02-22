@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+
+{% block title %}Compare Experiments | Antigravity{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <div>
+        <h2 style="margin: 0; color: var(--text-main); font-size: 1.5rem;">Compare Experiments</h2>
+        <p style="margin: 8px 0 0 0; color: var(--text-muted); font-size: 0.875rem;">Side-by-side view of selected
+            experiments</p>
+    </div>
+    <a href="{% url 'experiments:list' %}"
+        style="background-color: #E5E7EB; color: #374151; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block;">
+        &larr; Back to List
+    </a>
+</div>
+
+<div class="card" style="padding: 24px; overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; word-wrap: break-word;">
+        <thead
+            style="background-color: #F9FAFB; color: var(--text-muted); font-size: 0.875rem; border-bottom: 1px solid var(--border-color);">
+            <tr>
+                <th style="padding: 12px 16px; font-weight: 600; min-width: 150px;">Attribute</th>
+                {% for exp in experiments %}
+                <th style="padding: 12px 16px; font-weight: 600; min-width: 150px;">
+                    Exp #{{ exp.id }}<br>
+                    <span style="font-weight: 400; font-size: 0.75rem;">{{ exp.formulation.name }}</span>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Core Info -->
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 12px 16px; font-weight: 600; color: var(--text-main); background-color: #F3F4F6;">
+                    Test Type</td>
+                {% for exp in experiments %}
+                <td style="padding: 12px 16px;">
+                    <span
+                        style="background-color: #FEE2E2; color: #991B1B; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                        {{ exp.test_type }}
+                    </span>
+                </td>
+                {% endfor %}
+            </tr>
+
+            <!-- Dates -->
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 12px 16px; font-weight: 600; color: var(--text-main); background-color: #F3F4F6;">
+                    Date Performed</td>
+                {% for exp in experiments %}
+                <td style="padding: 12px 16px; font-size: 0.875rem; color: #4B5563;">
+                    <!-- Forced single-line to avoid formatter breaks -->
+                    <span>{{ exp.formulation.created_at|date:"Y-m-d H:i" }}</span>
+                </td>
+                {% endfor %}
+            </tr>
+
+            <!-- Images Section -->
+            <tr style="border-bottom: 2px solid #D1D5DB;">
+                <td style="padding: 12px 16px; font-weight: 600; color: #3B82F6; background-color: #EFF6FF;">
+                    <i class="fas fa-image" style="margin-right: 6px;"></i> Image Data
+                </td>
+                {% for exp in experiments %}
+                <td style="padding: 12px 16px; vertical-align: top;">
+                    {% if exp.images.all %}
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                        {% for img in exp.images.all %}
+                        <a href="#" class="gallery-trigger-btn"
+                            data-images='[{% for img_inner in exp.images.all %}{"url":"{{ img_inner.image.url|escapejs }}", "desc":"{{ img_inner.description|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                            style="display: block;">
+                            <img src="{{ img.image.url }}" alt="Experiment Image"
+                                style="width: 100%; height: 100px; border-radius: 4px; border: 1px solid #E5E7EB; object-fit: cover; transition: transform 0.2s;"
+                                onmouseover="this.style.transform='scale(1.05)'"
+                                onmouseout="this.style.transform='scale(1)'">
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <span style="color: #9CA3AF; font-size: 0.875rem; font-style: italic;">No Image</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+
+            <!-- Conditions Section -->
+            <tr>
+                <td colspan="100%"
+                    style="padding: 16px; font-weight: bold; background-color: #F0FDF4; color: #065F46; border-bottom: 1px solid var(--border-color);">
+                    실험 조건 (Conditions)
+                </td>
+            </tr>
+            {% for key in condition_keys %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 12px 16px; color: #047857; font-weight: 500; padding-left: 32px;">{{ key|title }}
+                </td>
+                {% for exp in experiments %}
+                <td style="padding: 12px 16px; color: #111827;">
+                    {% for k, v in exp.conditions.items %}
+                    {% if k == key %}<b>{{ v }}</b>{% endif %}
+                    {% endfor %}
+                    <!-- Fallback empty check implies missing data handled simply by empty space if no match -->
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+
+            <!-- Results Section -->
+            <tr>
+                <td colspan="100%"
+                    style="padding: 16px; font-weight: bold; background-color: #F5F3FF; color: #5B21B6; border-bottom: 1px solid var(--border-color);">
+                    실험 결과 (Metrics)
+                </td>
+            </tr>
+            {% for key in result_keys %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 12px 16px; color: #6D28D9; font-weight: 500; padding-left: 32px;">{{ key|title }}
+                </td>
+                {% for exp in experiments %}
+                <td style="padding: 12px 16px; color: #111827;">
+                    {% for k, v in exp.results.items %}
+                    {% if k == key %}<b>{{ v }}</b>{% endif %}
+                    {% endfor %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+
+            <!-- Raw Data Files Section -->
+            <tr style="border-bottom: 2px solid #D1D5DB;">
+                <td style="padding: 12px 16px; font-weight: 600; color: #2563EB; background-color: #DBEAFE;">
+                    <i class="fas fa-file-download" style="margin-right: 6px;"></i> Raw Data
+                </td>
+                {% for exp in experiments %}
+                <td style="padding: 12px 16px; vertical-align: top;">
+                    {% if exp.raw_files.all %}
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button type="button" class="raw-data-trigger-btn"
+                            data-files='[{% for r_file in exp.raw_files.all %}{"url":"{{ r_file.file.url|escapejs }}", "name":"{{ r_file.description|default:r_file.file.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                            style="background: none; border: 1px solid #C7D2FE; color: #4338CA; font-size: 0.8125rem; font-weight: 500; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background-color 0.2s; white-space: nowrap;">
+                            <i class="fas fa-file-download"></i>
+                            View {{ exp.raw_files.count }} File{{ exp.raw_files.count|pluralize }}
+                        </button>
+                    </div>
+                    {% else %}
+                    <span style="color: #9CA3AF; font-size: 0.875rem; font-style: italic;">No files</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+
+        </tbody>
+    </table>
+</div>
+
+<!-- Custom Image Gallery Modal -->
+<div id="image-gallery-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="position: absolute; top: 20px; right: 30px; cursor: pointer; color: white; font-size: 2rem;"
+        id="gallery-close">&times;</div>
+
+    <div
+        style="display: flex; align-items: center; justify-content: center; width: 100%; max-width: 1200px; padding: 0 40px; position: relative;">
+        <button id="gallery-prev"
+            style="background: none; border: none; color: white; font-size: 4rem; cursor: pointer; position: absolute; left: 20px; transition: color 0.2s;">
+            &#10094;
+        </button>
+
+        <img id="gallery-image" src=""
+            style="max-height: 80vh; max-width: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <div id="gallery-caption"
+            style="position: absolute; bottom: -40px; color: white; text-align: center; width: 100%; font-size: 1.1rem;">
+        </div>
+
+        <button id="gallery-next"
+            style="background: none; border: none; color: white; font-size: 4rem; cursor: pointer; position: absolute; right: 20px; transition: color 0.2s;">
+            &#10095;
+        </button>
+    </div>
+
+    <div id="gallery-counter" style="color: white; margin-top: 50px; font-size: 1.1rem; font-weight: 500;"></div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('image-gallery-modal');
+        const modalImg = document.getElementById('gallery-image');
+        const caption = document.getElementById('gallery-caption');
+        const closeBtn = document.getElementById('gallery-close');
+        const prevBtn = document.getElementById('gallery-prev');
+        const nextBtn = document.getElementById('gallery-next');
+        const counter = document.getElementById('gallery-counter');
+
+        let currentImages = [];
+        let currentIndex = 0;
+
+        // Open Modal
+        document.querySelectorAll('.gallery-trigger-btn').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                try {
+                    const rawData = this.getAttribute('data-images');
+                    currentImages = JSON.parse(rawData);
+                } catch (err) {
+                    currentImages = [];
+                    console.error('Error parsing image array', err);
+                }
+
+                if (currentImages.length > 0) {
+                    // Find which specific image was clicked 
+                    const clickedImgSrc = this.querySelector('img').src;
+
+                    // Match full URL logic
+                    currentIndex = currentImages.findIndex(obj => clickedImgSrc.includes(obj.url));
+                    if (currentIndex === -1) currentIndex = 0;
+
+                    updateModalImage();
+                    modal.style.display = 'flex';
+                }
+            });
+        });
+
+        function updateModalImage() {
+            modalImg.src = currentImages[currentIndex].url;
+            caption.innerText = currentImages[currentIndex].desc || '';
+            counter.innerText = `${currentIndex + 1} / ${currentImages.length}`;
+
+            prevBtn.style.opacity = currentImages.length > 1 ? '1' : '0.3';
+            prevBtn.style.cursor = currentImages.length > 1 ? 'pointer' : 'default';
+
+            nextBtn.style.opacity = currentImages.length > 1 ? '1' : '0.3';
+            nextBtn.style.cursor = currentImages.length > 1 ? 'pointer' : 'default';
+        }
+
+        // Navigation
+        prevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentImages.length > 1) {
+                currentIndex = (currentIndex > 0) ? currentIndex - 1 : currentImages.length - 1;
+                updateModalImage();
+            }
+        });
+
+        nextBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (currentImages.length > 1) {
+                currentIndex = (currentIndex < currentImages.length - 1) ? currentIndex + 1 : 0;
+                updateModalImage();
+            }
+        });
+
+        // Close Modal
+        closeBtn.addEventListener('click', () => modal.style.display = 'none');
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.style.display = 'none';
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (modal.style.display === 'flex') {
+                if (e.key === 'Escape') modal.style.display = 'none';
+                if (e.key === 'ArrowLeft') prevBtn.click();
+                if (e.key === 'ArrowRight') nextBtn.click();
+            }
+        });
+    });
+</script>
+
+<!-- Custom Raw Data Modal -->
+<div id="raw-data-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+
+    <div
+        style="background-color: white; border-radius: 8px; width: 90%; max-width: 500px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;">
+        <div style="position: absolute; top: 16px; right: 20px; cursor: pointer; color: #9CA3AF; font-size: 1.5rem;"
+            id="raw-data-close">&times;</div>
+
+        <h3
+            style="margin-top: 0; color: #111827; margin-bottom: 20px; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px; font-size: 1.25rem;">
+            Attached Raw Data</h3>
+
+        <ul id="raw-data-list"
+            style="list-style-type: none; padding: 0; margin: 0; max-height: 50vh; overflow-y: auto;">
+        </ul>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const rawModal = document.getElementById('raw-data-modal');
+        const rawList = document.getElementById('raw-data-list');
+        const rawClose = document.getElementById('raw-data-close');
+
+        document.querySelectorAll('.raw-data-trigger-btn').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.preventDefault();
+                rawList.innerHTML = '';
+
+                try {
+                    const rawData = this.getAttribute('data-files');
+                    const files = JSON.parse(rawData);
+
+                    if (files.length === 0) {
+                        rawList.innerHTML = '<li style="color: #6B7280; padding: 12px 0;">No files attached.</li>';
+                    } else {
+                        files.forEach(file => {
+                            let displayName = file.name;
+                            if (displayName.includes('/') || displayName.includes('\\')) {
+                                displayName = displayName.split('/').pop().split('\\').pop();
+                            }
+
+                            const li = document.createElement('li');
+                            li.style.cssText = 'padding: 12px 0; border-bottom: 1px solid #F3F4F6;';
+                            li.innerHTML = `
+                                <a href="${file.url}" target="_blank" style="color: #2563EB; text-decoration: none; display: flex; align-items: center; gap: 8px; font-weight: 500;">
+                                    <i class="fas fa-file-csv" style="color: #10B981; font-size: 1.2rem;"></i> 
+                                    <span style="word-break: break-all;">${displayName}</span>
+                                </a>
+                            `;
+                            rawList.appendChild(li);
+                        });
+                    }
+
+                    rawModal.style.display = 'flex';
+                } catch (err) {
+                    console.error('Error parsing file array', err);
+                }
+            });
+        });
+
+        rawClose.addEventListener('click', () => rawModal.style.display = 'none');
+        rawModal.addEventListener('click', (e) => {
+            if (e.target === rawModal) rawModal.style.display = 'none';
+        });
+    });
+</script>
+
+{% endblock %}

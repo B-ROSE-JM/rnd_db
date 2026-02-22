@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+
+{% block title %}Add Formulation - R&D Platform{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px;">
+    <a href="{% url 'formulations:list' %}"
+        style="color: var(--text-muted); text-decoration: none; font-size: 0.875rem;">&larr; Back to Formulations</a>
+    <h1 class="page-title" style="margin-top: 12px; margin-bottom: 0;">{% if formulation %}Edit Mixture Recipe{% else %}Create Mixture Recipe{% endif %}</h1>
+    <p style="color: var(--text-muted); margin-top: 8px;">Combine raw materials and set custom mixing conditions.</p>
+</div>
+
+<div class="card" style="max-width: 900px;">
+    <form method="POST"
+        action="{% if formulation %}{% url 'formulations:edit' formulation.id %}{% else %}{% url 'formulations:add' %}{% endif %}">
+        {% csrf_token %}
+
+        <!-- Core Details -->
+        <div style="margin-bottom: 32px;">
+            <h3 style="margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">1.
+                Recipe Details</h3>
+
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">Formulation
+                    Name</label>
+                <input type="text" name="name" required value="{{ formulation.name|default:'' }}"
+                    style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
+                    placeholder="e.g. Masterbatch V2">
+            </div>
+
+            <div style="margin-bottom: 16px;">
+                <label
+                    style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">Description</label>
+                <textarea name="description" rows="3"
+                    style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
+                    placeholder="Brief description of this mixture's purpose">{{ formulation.description|default:'' }}</textarea>
+            </div>
+        </div>
+
+        <!-- Ingredients Hierarchy (Level 2 linking Level 1) -->
+        <div style="margin-bottom: 32px;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0;">2. Raw Materials (Ingredients)</h3>
+                <button type="button" id="addMaterialBtn"
+                    style="background-color: #F3F4F6; color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500;">
+                    + Add Ingredient
+                </button>
+            </div>
+
+            <div id="ingredients-container">
+                <!-- Pre-populated existing ingredients -->
+                {% if formulation %}
+                {% for ing in ingredients_data %}
+                <div class="field-group"
+                    style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center; padding: 12px; background-color: #F9FAFB; border: 1px solid var(--border-color); border-radius: 6px;">
+                    <div style="flex: 2;">
+                        <select name="materials[]" required
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: white;">
+                            {{ ing.options_html|safe }}
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="number" step="any" name="ratios[]" value="{{ ing.ratio }}"
+                            placeholder="Amount/Ratio" required
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="text" name="units[]" value="{{ ing.unit }}" placeholder="Unit (g, %, ml)" required
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                    </div>
+                    <button type="button" class="remove-btn"
+                        style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
+                </div>
+                {% endfor %}
+                {% endif %}
+                <!-- Javascript will inject new fields here -->
+            </div>
+            <p id="mat-empty-state"
+                style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 20px; background-color: #F9FAFB; border-radius: 6px; border: 1px dashed var(--border-color); {% if formulation and formulation.ingredients.all %}display: none;{% endif %}">
+                No ingredients added. Select raw materials to build the recipe.
+            </p>
+        </div>
+
+        <!-- Dynamic Conditions -->
+        <div style="margin-bottom: 32px;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
+                <h3 style="margin: 0;">3. Custom Mixing Conditions (Dynamic)</h3>
+                <button type="button" id="addCondBtn"
+                    style="background-color: #F3F4F6; color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500;">
+                    + Add Condition
+                </button>
+            </div>
+
+            <div id="conditions-container">
+                <!-- Pre-populated existing condition keys & values (if editing) -->
+                {% for field in cond_fields %}
+                <div class="field-group"
+                    style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center; padding: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px;">
+                    <div style="flex: 1;">
+                        <input type="text" name="condition_keys[]" value="{{ field.key }}" readonly
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: #E5E7EB; color: #6B7280; cursor: not-allowed;">
+                    </div>
+                    <div style="flex: 1;">
+                        <input type="text" name="condition_values[]" placeholder="Value (Leave empty to skip)"
+                            value="{{ field.val }}"
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                    </div>
+                    <button type="button" class="remove-btn"
+                        style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
+                </div>
+                {% endfor %}
+                <!-- Javascript will inject fields here -->
+            </div>
+            <p id="cond-empty-state"
+                style="color: var(--text-muted); font-size: 0.875rem; text-align: center; padding: 20px; background-color: #F9FAFB; border-radius: 6px; border: 1px dashed var(--border-color); {% if cond_fields %}display: none;{% endif %}">
+                No special conditions added. Add parameters like "Mixing Temp", "RPM", etc.
+            </p>
+        </div>
+
+        <div
+            style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border-color); padding-top: 24px;">
+            <a href="{% url 'formulations:list' %}"
+                style="padding: 10px 20px; color: var(--text-main); text-decoration: none; font-weight: 500;">Cancel</a>
+            <button type="submit" class="btn-primary" style="padding: 10px 24px;">Save Formulation</button>
+        </div>
+    </form>
+</div>
+
+<!-- Hidden template for material options to pass to JS smoothly -->
+<select id="material-options-template" style="display: none;">
+    <option value="">Select a material...</option>
+    {% for mat in materials %}
+    <option value="{{ mat.id }}">{{ mat.name }} ({{ mat.material_type }})</option>
+    {% endfor %}
+</select>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- 1. Materials/Ingredients Builder ---
+        const matContainer = document.getElementById('ingredients-container');
+        const matEmptyState = document.getElementById('mat-empty-state');
+        const addMatBtn = document.getElementById('addMaterialBtn');
+        const matOptionsHtml = document.getElementById('material-options-template').innerHTML;
+        let matCount = 0;
+
+        addMatBtn.addEventListener('click', function () {
+            matEmptyState.style.display = 'none';
+
+            const fieldGroup = document.createElement('div');
+            fieldGroup.style.cssText = 'display: flex; gap: 12px; margin-bottom: 12px; align-items: center; padding: 12px; background-color: #F9FAFB; border: 1px solid var(--border-color); border-radius: 6px;';
+
+            fieldGroup.innerHTML = `
+                <div style="flex: 2;">
+                    <select name="materials[]" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: white;">
+                        ${matOptionsHtml}
+                    </select>
+                </div>
+                <div style="flex: 1;">
+                    <input type="number" step="any" name="ratios[]" placeholder="Amount/Ratio" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                </div>
+                <div style="flex: 1;">
+                    <input type="text" name="units[]" placeholder="Unit (g, %, ml)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                </div>
+                <button type="button" class="remove-btn" style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
+            `;
+
+            matContainer.appendChild(fieldGroup);
+            matCount++;
+
+            fieldGroup.querySelector('.remove-btn').addEventListener('click', function () {
+                matContainer.removeChild(fieldGroup);
+                matCount--;
+                if (matCount === 0) matEmptyState.style.display = 'block';
+            });
+        });
+
+        // --- 2. Conditions/Attributes Builder ---
+        const condContainer = document.getElementById('conditions-container');
+        const condEmptyState = document.getElementById('cond-empty-state');
+        const addCondBtn = document.getElementById('addCondBtn');
+        let condCount = condContainer.querySelectorAll('.field-group').length;
+
+        // Attach listeners to pre-populated condition rows
+        condContainer.querySelectorAll('.field-group').forEach(group => {
+            group.querySelector('.remove-btn').addEventListener('click', function () {
+                condContainer.removeChild(group);
+                condCount--;
+                if (condCount === 0) {
+                    condEmptyState.style.display = 'block';
+                }
+            });
+        });
+
+        addCondBtn.addEventListener('click', function () {
+            condEmptyState.style.display = 'none';
+
+            const fieldGroup = document.createElement('div');
+            fieldGroup.style.cssText = 'display: flex; gap: 12px; margin-bottom: 12px; align-items: center; padding: 12px; background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px;';
+
+            fieldGroup.innerHTML = `
+                <div style="flex: 1;">
+                    <input type="text" name="condition_keys[]" placeholder="Condition Name (e.g. RPM)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                </div>
+                <div style="flex: 1;">
+                    <input type="text" name="condition_values[]" placeholder="Value (e.g. 500)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                </div>
+                <button type="button" class="remove-btn" style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
+            `;
+
+            condContainer.appendChild(fieldGroup);
+            condCount++;
+
+            fieldGroup.querySelector('.remove-btn').addEventListener('click', function () {
+                condContainer.removeChild(fieldGroup);
+                condCount--;
+                if (condCount === 0) condEmptyState.style.display = 'block';
+            });
+        });
+    });
+</script>
+{% endblock %}
