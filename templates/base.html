@@ -149,6 +149,22 @@
     </style>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- jQuery (required for DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    
+    <style>
+        /* Custom DataTables styles for R&D theme */
+        table.dataTable { border-collapse: collapse !important; width: 100% !important; }
+        table.dataTable thead th { border-bottom: 2px solid var(--border-color) !important; color: var(--text-muted); font-weight: 500; font-size: 0.875rem; text-align: left; padding: 12px 16px; background-color: #F9FAFB; }
+        table.dataTable tbody td { border-bottom: 1px solid var(--border-color); padding: 12px 16px; font-size: 0.875rem; vertical-align: middle; }
+        .dataTables_wrapper .dataTables_filter input { border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 12px; margin-left: 8px; }
+        .dataTables_wrapper .dataTables_length select { border: 1px solid var(--border-color); border-radius: 6px; padding: 4px 8px; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button { border-radius: 6px !important; padding: 4px 12px !important; margin: 0 4px; border: 1px solid transparent !important; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current { background: var(--primary-color) !important; color: white !important; border: 1px solid var(--primary-color) !important; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover { background: #F3F4F6 !important; color: var(--text-main) !important; border: 1px solid var(--border-color) !important; }
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 
@@ -162,8 +178,8 @@
         </div>
         <nav class="sidebar-nav">
             <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">Dashboard</a>
-            <a href="/materials/" class="nav-item {% if '/materials/' in request.path %}active{% endif %}">Raw
-                Materials</a>
+            <a href="/om/" class="nav-item {% if '/om/' in request.path %}active{% endif %}">Organic Materials (OM)</a>
+            <a href="/mm/" class="nav-item {% if '/mm/' in request.path %}active{% endif %}">Metal Materials (MM)</a>
             <a href="/formulations/"
                 class="nav-item {% if '/formulations/' in request.path %}active{% endif %}">Formulations</a>
             <a href="/experiments/"
@@ -191,6 +207,8 @@
         </div>
     </main>
 
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     {% block extra_js %}{% endblock %}
 </body>
 

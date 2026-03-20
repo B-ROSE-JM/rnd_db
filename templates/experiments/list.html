@@ -3,353 +3,207 @@
 {% block title %}Experiments - R&D Platform{% endblock %}
 
 {% block content %}
+<style>
+    .col-filter-input {
+        width: 100%; padding: 5px 8px; border: 1px solid #E2E8F0; border-radius: 4px;
+        font-size: 0.7rem; background: white; color: #374151; outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s; box-sizing: border-box;
+    }
+    .col-filter-input:focus { border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.12); background: #F8FAFF; }
+    .col-filter-input::placeholder { color: #B0B8C4; }
+    .filter-row-text th, .filter-row-range th { padding: 4px 12px !important; background: #F1F5F9 !important; }
+    .filter-row-range th { border-bottom: 2px solid #DBEAFE !important; }
+    .range-wrap { display: flex; gap: 2px; }
+    .range-wrap input { width: 50%; min-width: 0; text-align: center; }
+</style>
+
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
     <div>
         <h1 class="page-title" style="margin-bottom: 0;">Experimental Data</h1>
-        <p style="color: var(--text-muted); margin-top: 8px;">Log test results and upload raw CSV data tied to specific
-            formulations.</p>
+        <p style="color: var(--text-muted); margin-top: 8px;">Log test results and upload raw CSV data tied to specific formulations.</p>
     </div>
     <a href="{% url 'experiments:add' %}" class="btn-primary">+ Log Experiment</a>
 </div>
 
 <div class="card" style="padding: 0; overflow: hidden;">
-    <div style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); background-color: #F9FAFB;">
-        <form method="GET" action="{% url 'experiments:list' %}" style="margin: 0;">
-            <input type="text" name="q" value="{{ request.GET.q|default_if_none:'' }}"
-                placeholder="Search experiments by formulation or test type..."
-                style="padding: 8px 12px; width: 300px; border: 1px solid var(--border-color); border-radius: 6px;">
-            <button type="submit"
-                style="padding: 8px 12px; background-color: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">Search</button>
-            {% if request.GET.q %}
-            <a href="{% url 'experiments:list' %}"
-                style="margin-left: 8px; color: #6B7280; text-decoration: none; font-size: 0.875rem;">Clear</a>
-            {% endif %}
-        </form>
-    </div>
-
-    <!-- Add a form to wrap the table for multi-select actions -->
     <form id="compare-form" method="GET" action="{% url 'experiments:compare' %}">
-
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: flex-end; padding: 12px 24px;">
             <button type="submit" id="compare-btn" disabled
                 style="background-color: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.875rem; opacity: 0.5; transition: opacity 0.2s;">
                 <i class="fas fa-columns" style="margin-right: 8px;"></i> Compare Selected
             </button>
         </div>
 
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-            <thead
-                style="background-color: #F9FAFB; color: var(--text-muted); font-size: 0.875rem; border-bottom: 1px solid var(--border-color);">
+        <table id="data-table" class="display" style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead style="background-color: #F9FAFB; color: var(--text-muted); font-size: 0.875rem; border-bottom: 1px solid var(--border-color);">
                 <tr>
-                    <th style="padding: 12px 16px; width: 40px; text-align: center;">
+                    <th style="padding: 12px 16px; width: 40px; text-align: center;" data-filter="none">
                         <input type="checkbox" id="select-all" style="cursor: pointer;">
                     </th>
-                    <th style="padding: 12px 24px; font-weight: 500;">Formulation (Level 2)</th>
-                    <th style="padding: 12px 24px; font-weight: 500;">Test Type</th>
-                    <!-- Dynamic Condition Columns -->
+                    <th style="padding: 12px 16px; font-weight: 500;" data-filter="text">Formulation (Level 2)</th>
+                    <th style="padding: 12px 16px; font-weight: 500;" data-filter="text">Test Type</th>
                     {% for key in condition_keys %}
-                    <th style="padding: 12px 24px; font-weight: 500;">
-                        <span style="color:#10B981;">[Cond]</span> <span>{{ key|title }}</span>
+                    <th style="padding: 12px 16px; font-weight: 500;" data-filter="num">
+                        <span style="color:#10B981;">[Cond]</span> {{ key|title }}
                     </th>
                     {% endfor %}
-                    <!-- Dynamic Result Columns -->
                     {% for key in result_keys %}
-                    <th style="padding: 12px 24px; font-weight: 500;">
-                        <span style="color:#8B5CF6;">[Metric]</span> <span>{{ key|title }}</span>
+                    <th style="padding: 12px 16px; font-weight: 500;" data-filter="num">
+                        <span style="color:#8B5CF6;">[Metric]</span> {{ key|title }}
                     </th>
                     {% endfor %}
-                    <th style="padding: 12px 24px; font-weight: 500;">Image Data</th>
-                    <th style="padding: 12px 24px; font-weight: 500;">Raw Data</th>
-                    <th style="padding: 12px 24px; font-weight: 500; text-align: right;">Action</th>
+                    <th style="padding: 12px 16px; font-weight: 500;" data-filter="none">Image Data</th>
+                    <th style="padding: 12px 16px; font-weight: 500;" data-filter="none">Raw Data</th>
+                    <th style="padding: 12px 16px; font-weight: 500; text-align: right;" data-filter="none">Action</th>
                 </tr>
             </thead>
             <tbody>
                 {% for exp in experiments %}
                 <tr style="border-bottom: 1px solid var(--border-color);">
-                    <td style="padding: 16px; text-align: center;">
-                        <input type="checkbox" name="exp_ids" value="{{ exp.id }}" class="exp-checkbox"
-                            style="cursor: pointer;">
+                    <td style="padding: 14px 16px; text-align: center;">
+                        <input type="checkbox" name="exp_ids" value="{{ exp.id }}" class="exp-checkbox" style="cursor: pointer;">
                     </td>
-                    <td style="padding: 16px 24px; font-weight: 600; color: var(--text-main);">
-                        <!-- Verify formulation.name rendering. If not working, this acts as fallback -->
+                    <td style="padding: 14px 16px; font-weight: 600; color: var(--text-main);">
                         <a href="#" style="color: var(--primary-color); text-decoration: none;">
                             {% if exp.formulation %}{{ exp.formulation.name }}{% else %}Unknown{% endif %}
                         </a>
                     </td>
-                    <td style="padding: 16px 24px;">
-                        <span
-                            style="background-color: #FEE2E2; color: #991B1B; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
-                            {{ exp.test_type }}
-                        </span>
+                    <td style="padding: 14px 16px;">
+                        <span style="background-color: #FEE2E2; color: #991B1B; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">{{ exp.test_type }}</span>
                     </td>
-
                     {% for key in condition_keys %}
-                    <td style="padding: 16px 24px;">
-                        {% for k, v in exp.conditions.items %}
-                        {% if k == key %}<b style="color: #059669;">{{ v }}</b>{% endif %}
-                        {% endfor %}
+                    <td style="padding: 14px 16px;">
+                        {% for k, v in exp.conditions.items %}{% if k == key %}<b style="color: #059669;">{{ v }}</b>{% endif %}{% endfor %}
                     </td>
                     {% endfor %}
-
                     {% for key in result_keys %}
-                    <td style="padding: 16px 24px;">
-                        {% for k, v in exp.results.items %}
-                        {% if k == key %}<b>{{ v }}</b>{% endif %}
-                        {% endfor %}
+                    <td style="padding: 14px 16px;">
+                        {% for k, v in exp.results.items %}{% if k == key %}<b>{{ v }}</b>{% endif %}{% endfor %}
                     </td>
                     {% endfor %}
-
-                    <td style="padding: 16px 24px;">
+                    <td style="padding: 14px 16px;">
                         {% if exp.images.all %}
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <button type="button" class="gallery-trigger-btn"
-                                data-images='[{% for img in exp.images.all %}{"url":"{{ img.image.url|escapejs }}", "desc":"{{ img.description|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
-                                style="background: none; border: 1px solid #BFDBFE; color: #2563EB; font-size: 0.8125rem; font-weight: 500; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background-color 0.2s;">
-                                <i class="fas fa-images"></i>
-                                View {{ exp.images.count }} Image{{ exp.images.count|pluralize }}
-                            </button>
-                        </div>
-                        {% else %}
-                        <span style="color: #9CA3AF; font-size: 0.875rem;">-</span>
-                        {% endif %}
+                        <button type="button" class="gallery-trigger-btn"
+                            data-images='[{% for img in exp.images.all %}{"url":"{{ img.image.url|escapejs }}", "desc":"{{ img.description|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                            style="background:none;border:1px solid #BFDBFE;color:#2563EB;font-size:0.8125rem;font-weight:500;padding:6px 12px;border-radius:4px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                            <i class="fas fa-images"></i> View {{ exp.images.count }}
+                        </button>
+                        {% else %}<span style="color: #9CA3AF; font-size: 0.875rem;">-</span>{% endif %}
                     </td>
-
-                    <td style="padding: 16px 24px;">
+                    <td style="padding: 14px 16px;">
                         {% if exp.raw_files.all %}
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <button type="button" class="raw-data-trigger-btn"
-                                data-files='[{% for r_file in exp.raw_files.all %}{"url":"{{ r_file.file.url|escapejs }}", "name":"{{ r_file.description|default:r_file.file.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
-                                style="background: none; border: 1px solid #C7D2FE; color: #4338CA; font-size: 0.8125rem; font-weight: 500; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background-color 0.2s; white-space: nowrap;">
-                                <i class="fas fa-file-download"></i>
-                                View {{ exp.raw_files.count }} File{{ exp.raw_files.count|pluralize }}
-                            </button>
-                        </div>
-                        {% else %}
-                        <span style="color: #9CA3AF;">-</span>
-                        {% endif %}
+                        <button type="button" class="raw-data-trigger-btn"
+                            data-files='[{% for r_file in exp.raw_files.all %}{"url":"{{ r_file.file.url|escapejs }}", "name":"{{ r_file.description|default:r_file.file.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                            style="background:none;border:1px solid #C7D2FE;color:#4338CA;font-size:0.8125rem;font-weight:500;padding:6px 12px;border-radius:4px;cursor:pointer;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+                            <i class="fas fa-file-download"></i> View {{ exp.raw_files.count }}
+                        </button>
+                        {% else %}<span style="color: #9CA3AF;">-</span>{% endif %}
                     </td>
-                    <td style="padding: 16px 24px; text-align: right;">
-                        <a href="{% url 'experiments:edit' exp.id %}"
-                            style="color: #4B5563; text-decoration: none; margin-right: 12px; font-size: 0.875rem;">Edit</a>
-                        <a href="{% url 'experiments:delete' exp.id %}"
-                            style="color: #EF4444; text-decoration: none; font-size: 0.875rem;"
-                            onclick="return confirm('Are you sure you want to delete this experiment?');">Delete</a>
+                    <td style="padding: 14px 16px; text-align: right;">
+                        <a href="{% url 'experiments:edit' exp.id %}" style="color: #4B5563; text-decoration: none; margin-right: 12px; font-size: 0.875rem;">Edit</a>
+                        <a href="{% url 'experiments:delete' exp.id %}" style="color: #EF4444; text-decoration: none; font-size: 0.875rem;" onclick="return confirm('Delete this experiment?');">Delete</a>
                     </td>
                 </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="100%" style="padding: 32px; text-align: center; color: var(--text-muted);">
-                        No experiments logged yet.
-                    </td>
-                </tr>
+                <tr><td colspan="100%" style="padding: 32px; text-align: center; color: var(--text-muted);">No experiments logged yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </form>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const selectAll = document.getElementById('select-all');
-            const checkboxes = document.querySelectorAll('.exp-checkbox');
-            const compareBtn = document.getElementById('compare-btn');
-
-            function updateCompareBtn() {
-                const checkedCount = document.querySelectorAll('.exp-checkbox:checked').length;
-                if (checkedCount >= 2) {
-                    compareBtn.disabled = false;
-                    compareBtn.style.opacity = '1';
-                } else {
-                    compareBtn.disabled = true;
-                    compareBtn.style.opacity = '0.5';
-                }
-            }
-
-            selectAll.addEventListener('change', function () {
-                checkboxes.forEach(cb => cb.checked = selectAll.checked);
-                updateCompareBtn();
-            });
-
-            checkboxes.forEach(cb => {
-                cb.addEventListener('change', updateCompareBtn);
-            });
+    document.addEventListener('DOMContentLoaded', function () {
+        // === Build filter rows ===
+        const headerRow = document.querySelector('#data-table thead tr');
+        const ths = headerRow.querySelectorAll('th');
+        const textRow = document.createElement('tr'); textRow.className = 'filter-row-text';
+        const rangeRow = document.createElement('tr'); rangeRow.className = 'filter-row-range';
+        ths.forEach((th, idx) => {
+            const ft = th.dataset.filter || 'none';
+            const tTh = document.createElement('th'), rTh = document.createElement('th');
+            if (ft === 'text') { tTh.innerHTML = `<input type="text" class="col-filter-input cf-text" data-col="${idx}" placeholder="🔍 Search...">`; rTh.innerHTML = ''; }
+            else if (ft === 'num') { tTh.innerHTML = `<input type="text" class="col-filter-input cf-text" data-col="${idx}" placeholder="🔍 Search...">`; rTh.innerHTML = `<div class="range-wrap"><input type="number" class="col-filter-input cf-min" data-col="${idx}" placeholder="Min" step="any"><input type="number" class="col-filter-input cf-max" data-col="${idx}" placeholder="Max" step="any"></div>`; }
+            else { tTh.innerHTML = ''; rTh.innerHTML = ''; }
+            textRow.appendChild(tTh); rangeRow.appendChild(rTh);
         });
+        headerRow.parentNode.appendChild(textRow); headerRow.parentNode.appendChild(rangeRow);
+
+        const table = $('#data-table').DataTable({ pageLength: 25, order: [], orderCellsTop: true, columnDefs: [{ orderable: false, targets: [0,-1,-2,-3] }], language: { search: "Global Search:" } });
+
+        document.querySelectorAll('.cf-text').forEach(i => { i.addEventListener('keyup', function() { table.column(+this.dataset.col).search(this.value).draw(); }); });
+        document.querySelectorAll('.cf-min, .cf-max').forEach(i => { i.addEventListener('keyup', function() { table.draw(); }); i.addEventListener('change', function() { table.draw(); }); });
+        $.fn.dataTable.ext.search.push(function(settings, data) {
+            if (settings.nTable.id !== 'data-table') return true;
+            const mins = document.querySelectorAll('.cf-min');
+            for (const mi of mins) {
+                const col = +mi.dataset.col, mx = document.querySelector(`.cf-max[data-col="${col}"]`);
+                const minV = parseFloat(mi.value), maxV = mx ? parseFloat(mx.value) : NaN;
+                if (isNaN(minV) && isNaN(maxV)) continue;
+                const raw = data[col].trim(); if (raw === '-' || raw === '' || raw === 'None') return false;
+                const val = parseFloat(raw.replace(/[^0-9.-]/g, '')); if (isNaN(val)) return false;
+                if (!isNaN(minV) && val < minV) return false; if (!isNaN(maxV) && val > maxV) return false;
+            } return true;
+        });
+
+        // === Compare & Checkbox ===
+        const selectAll = document.getElementById('select-all'), compareBtn = document.getElementById('compare-btn'), compareForm = document.getElementById('compare-form');
+        function updateCompareBtn() { const c = table.$('.exp-checkbox:checked').length; compareBtn.disabled = c < 2; compareBtn.style.opacity = c >= 2 ? '1' : '0.5'; }
+        if (selectAll) selectAll.addEventListener('change', function() { table.rows({search:'applied'}).nodes().to$().find('.exp-checkbox').prop('checked', this.checked); updateCompareBtn(); });
+        $('#data-table tbody').on('change', '.exp-checkbox', function() { updateCompareBtn(); const v = table.rows({search:'applied'}).nodes().to$().find('.exp-checkbox'); if (selectAll) selectAll.checked = v.length > 0 && v.length === v.filter(':checked').length; });
+        $(compareForm).on('submit', function(e) {
+            $(this).find('input[type="hidden"][name="exp_ids"]').remove();
+            table.$('.exp-checkbox:checked').each(function() { if (!$.contains(document, this)) $(compareForm).append($('<input>').attr('type','hidden').attr('name', this.name).val(this.value)); });
+        });
+    });
     </script>
 
-    <!-- Custom Raw Data Modal -->
-    <div id="raw-data-modal"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
-
-        <div
-            style="background-color: white; border-radius: 8px; width: 90%; max-width: 500px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;">
-            <div style="position: absolute; top: 16px; right: 20px; cursor: pointer; color: #9CA3AF; font-size: 1.5rem;"
-                id="raw-data-close">&times;</div>
-
-            <h3
-                style="margin-top: 0; color: #111827; margin-bottom: 20px; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px; font-size: 1.25rem;">
-                Attached Raw Data</h3>
-
-            <ul id="raw-data-list"
-                style="list-style-type: none; padding: 0; margin: 0; max-height: 50vh; overflow-y: auto;">
-            </ul>
+    <!-- Raw Data Modal -->
+    <div id="raw-data-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background-color:rgba(0,0,0,0.5);z-index:10000;justify-content:center;align-items:center;">
+        <div style="background-color:white;border-radius:8px;width:90%;max-width:500px;padding:24px;box-shadow:0 10px 25px rgba(0,0,0,0.2);position:relative;">
+            <div style="position:absolute;top:16px;right:20px;cursor:pointer;color:#9CA3AF;font-size:1.5rem;" id="raw-data-close">&times;</div>
+            <h3 style="margin-top:0;color:#111827;margin-bottom:20px;border-bottom:1px solid #E5E7EB;padding-bottom:12px;font-size:1.25rem;">Attached Raw Data</h3>
+            <ul id="raw-data-list" style="list-style-type:none;padding:0;margin:0;max-height:50vh;overflow-y:auto;"></ul>
         </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const rawModal = document.getElementById('raw-data-modal');
-            const rawList = document.getElementById('raw-data-list');
-            const rawClose = document.getElementById('raw-data-close');
-
-            document.querySelectorAll('.raw-data-trigger-btn').forEach(btn => {
-                btn.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    rawList.innerHTML = '';
-
-                    try {
-                        const rawData = this.getAttribute('data-files');
-                        const files = JSON.parse(rawData);
-
-                        if (files.length === 0) {
-                            rawList.innerHTML = '<li style="color: #6B7280; padding: 12px 0;">No files attached.</li>';
-                        } else {
-                            files.forEach(file => {
-                                // Extract just the filename if it's a full path but no description was provided
-                                let displayName = file.name;
-                                if (displayName.includes('/') || displayName.includes('\\')) {
-                                    displayName = displayName.split('/').pop().split('\\').pop();
-                                }
-
-                                const li = document.createElement('li');
-                                li.style.cssText = 'padding: 12px 0; border-bottom: 1px solid #F3F4F6;';
-                                li.innerHTML = `
-                                <a href="${file.url}" target="_blank" style="color: #2563EB; text-decoration: none; display: flex; align-items: center; gap: 8px; font-weight: 500;">
-                                    <i class="fas fa-file-csv" style="color: #10B981; font-size: 1.2rem;"></i> 
-                                    <span style="word-break: break-all;">${displayName}</span>
-                                </a>
-                            `;
-                                rawList.appendChild(li);
-                            });
-                        }
-
-                        rawModal.style.display = 'flex';
-                    } catch (err) {
-                        console.error('Error parsing file array', err);
-                    }
-                });
-            });
-
-            rawClose.addEventListener('click', () => rawModal.style.display = 'none');
-            rawModal.addEventListener('click', (e) => {
-                if (e.target === rawModal) rawModal.style.display = 'none';
+    document.addEventListener('DOMContentLoaded', function () {
+        const rawModal = document.getElementById('raw-data-modal'), rawList = document.getElementById('raw-data-list');
+        document.getElementById('raw-data-close').addEventListener('click', () => rawModal.style.display = 'none');
+        rawModal.addEventListener('click', e => { if (e.target === rawModal) rawModal.style.display = 'none'; });
+        document.querySelectorAll('.raw-data-trigger-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault(); rawList.innerHTML = '';
+                try { JSON.parse(this.getAttribute('data-files')).forEach(f => { let n = f.name; if (n.includes('/') || n.includes('\\')) n = n.split('/').pop().split('\\').pop(); const li = document.createElement('li'); li.style.cssText = 'padding:12px 0;border-bottom:1px solid #F3F4F6;'; li.innerHTML = `<a href="${f.url}" target="_blank" style="color:#2563EB;text-decoration:none;display:flex;align-items:center;gap:8px;font-weight:500;"><i class="fas fa-file-csv" style="color:#10B981;font-size:1.2rem;"></i><span style="word-break:break-all;">${n}</span></a>`; rawList.appendChild(li); }); rawModal.style.display = 'flex'; } catch(e) { console.error(e); }
             });
         });
+    });
     </script>
 
-    <div id="image-gallery-modal"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
-        <div style="position: absolute; top: 20px; right: 30px; cursor: pointer; color: white; font-size: 2rem;"
-            id="gallery-close">&times;</div>
-
-        <div
-            style="display: flex; align-items: center; justify-content: center; width: 100%; max-width: 1200px; padding: 0 40px; position: relative;">
-            <button id="gallery-prev"
-                style="background: none; border: none; color: white; font-size: 4rem; cursor: pointer; position: absolute; left: 20px; transition: color 0.2s;">
-                &#10094;
-            </button>
-
-            <img id="gallery-image" src=""
-                style="max-height: 80vh; max-width: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
-            <div id="gallery-caption"
-                style="position: absolute; bottom: -40px; color: white; text-align: center; width: 100%; font-size: 1.1rem;">
-            </div>
-
-            <button id="gallery-next"
-                style="background: none; border: none; color: white; font-size: 4rem; cursor: pointer; position: absolute; right: 20px; transition: color 0.2s;">
-                &#10095;
-            </button>
+    <!-- Image Gallery Modal -->
+    <div id="image-gallery-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background-color:rgba(0,0,0,0.85);z-index:9999;justify-content:center;align-items:center;flex-direction:column;">
+        <div style="position:absolute;top:20px;right:30px;cursor:pointer;color:white;font-size:2rem;" id="gallery-close">&times;</div>
+        <div style="display:flex;align-items:center;justify-content:center;width:100%;max-width:1200px;padding:0 40px;position:relative;">
+            <button id="gallery-prev" style="background:none;border:none;color:white;font-size:4rem;cursor:pointer;position:absolute;left:20px;">&#10094;</button>
+            <img id="gallery-image" src="" style="max-height:80vh;max-width:100%;object-fit:contain;border-radius:4px;box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+            <div id="gallery-caption" style="position:absolute;bottom:-40px;color:white;text-align:center;width:100%;font-size:1.1rem;"></div>
+            <button id="gallery-next" style="background:none;border:none;color:white;font-size:4rem;cursor:pointer;position:absolute;right:20px;">&#10095;</button>
         </div>
-
-        <div id="gallery-counter" style="color: white; margin-top: 50px; font-size: 1.1rem; font-weight: 500;"></div>
+        <div id="gallery-counter" style="color:white;margin-top:50px;font-size:1.1rem;font-weight:500;"></div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const modal = document.getElementById('image-gallery-modal');
-            const modalImg = document.getElementById('gallery-image');
-            const caption = document.getElementById('gallery-caption');
-            const closeBtn = document.getElementById('gallery-close');
-            const prevBtn = document.getElementById('gallery-prev');
-            const nextBtn = document.getElementById('gallery-next');
-            const counter = document.getElementById('gallery-counter');
-
-            let currentImages = [];
-            let currentIndex = 0;
-
-            // Open Modal
-            document.querySelectorAll('.gallery-trigger-btn').forEach(btn => {
-                btn.addEventListener('click', function (e) {
-                    e.preventDefault();
-
-                    try {
-                        const rawData = this.getAttribute('data-images');
-                        currentImages = JSON.parse(rawData);
-                    } catch (err) {
-                        currentImages = [];
-                        console.error('Error parsing image array', err);
-                    }
-
-                    if (currentImages.length > 0) {
-                        currentIndex = 0;
-                        updateModalImage();
-                        modal.style.display = 'flex';
-                    }
-                });
-            });
-
-            function updateModalImage() {
-                modalImg.src = currentImages[currentIndex].url;
-                caption.innerText = currentImages[currentIndex].desc || '';
-                counter.innerText = `${currentIndex + 1} / ${currentImages.length}`;
-
-                prevBtn.style.opacity = currentImages.length > 1 ? '1' : '0.3';
-                prevBtn.style.cursor = currentImages.length > 1 ? 'pointer' : 'default';
-
-                nextBtn.style.opacity = currentImages.length > 1 ? '1' : '0.3';
-                nextBtn.style.cursor = currentImages.length > 1 ? 'pointer' : 'default';
-            }
-
-            // Navigation
-            prevBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (currentImages.length > 1) {
-                    currentIndex = (currentIndex > 0) ? currentIndex - 1 : currentImages.length - 1;
-                    updateModalImage();
-                }
-            });
-
-            nextBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (currentImages.length > 1) {
-                    currentIndex = (currentIndex < currentImages.length - 1) ? currentIndex + 1 : 0;
-                    updateModalImage();
-                }
-            });
-
-            // Close Modal
-            closeBtn.addEventListener('click', () => modal.style.display = 'none');
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) modal.style.display = 'none';
-            });
-
-            // Keyboard navigation
-            document.addEventListener('keydown', (e) => {
-                if (modal.style.display === 'flex') {
-                    if (e.key === 'Escape') modal.style.display = 'none';
-                    if (e.key === 'ArrowLeft') prevBtn.click();
-                    if (e.key === 'ArrowRight') nextBtn.click();
-                }
-            });
-        });
+    document.addEventListener('DOMContentLoaded', function () {
+        const gM = document.getElementById('image-gallery-modal'), gI = document.getElementById('gallery-image'), gC = document.getElementById('gallery-caption'), gCl = document.getElementById('gallery-close'), gP = document.getElementById('gallery-prev'), gN = document.getElementById('gallery-next'), gCt = document.getElementById('gallery-counter');
+        let gImgs = [], gIdx = 0;
+        function updG() { gI.src = gImgs[gIdx].url; gC.innerText = gImgs[gIdx].desc || ''; gCt.innerText = `${gIdx+1} / ${gImgs.length}`; }
+        document.querySelectorAll('.gallery-trigger-btn').forEach(b => b.addEventListener('click', function(e) { e.preventDefault(); try { gImgs = JSON.parse(this.getAttribute('data-images')); } catch(e) { gImgs = []; } if (gImgs.length) { gIdx = 0; updG(); gM.style.display = 'flex'; } }));
+        gP.addEventListener('click', e => { e.stopPropagation(); if (gImgs.length > 1) { gIdx = gIdx > 0 ? gIdx - 1 : gImgs.length - 1; updG(); }});
+        gN.addEventListener('click', e => { e.stopPropagation(); if (gImgs.length > 1) { gIdx = gIdx < gImgs.length - 1 ? gIdx + 1 : 0; updG(); }});
+        gCl.addEventListener('click', () => gM.style.display = 'none');
+        gM.addEventListener('click', e => { if (e.target === gM) gM.style.display = 'none'; });
+        document.addEventListener('keydown', e => { if (gM.style.display === 'flex') { if (e.key === 'Escape') gM.style.display = 'none'; if (e.key === 'ArrowLeft') gP.click(); if (e.key === 'ArrowRight') gN.click(); }});
+    });
     </script>
 </div>
 {% endblock %}

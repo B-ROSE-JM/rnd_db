@@ -44,23 +44,36 @@ def experiment_add(request):
         cond_keys = request.POST.getlist('condition_keys[]')
         cond_values = request.POST.getlist('condition_values[]')
         for k, v in zip(cond_keys, cond_values):
-            if k.strip() and v.strip():
-                conditions_dict[k.strip()] = v.strip()
+            k = k.strip()
+            v = v.strip()
+            if k and v:
+                try:
+                    conditions_dict[k] = float(v)
+                except ValueError:
+                    conditions_dict[k] = v
 
         # Handle dynamic result metrics
         results_dict = {}
         res_keys = request.POST.getlist('result_keys[]')
         res_values = request.POST.getlist('result_values[]')
         for k, v in zip(res_keys, res_values):
-            if k.strip() and v.strip():
-                results_dict[k.strip()] = v.strip()
+            k = k.strip()
+            v = v.strip()
+            if k and v:
+                try:
+                    results_dict[k] = float(v)
+                except ValueError:
+                    results_dict[k] = v
                 
+        memo = request.POST.get('memo', '')
+        
         # Create base experiment record
         experiment = Experiment.objects.create(
             formulation_id=formulation_id,
             test_type=test_type,
             conditions=conditions_dict,
-            results=results_dict
+            results=results_dict,
+            memo=memo
         )
         
         # Process multiple images
@@ -95,13 +108,11 @@ def experiment_add(request):
             
     cond_fields = []
     for k in sorted(list(all_cond_keys)):
-        val = ''
-        cond_fields.append({'key': k, 'val': val})
+        cond_fields.append({'key': k, 'val': '', 'type': 'text'})
         
     res_fields = []
     for k in sorted(list(all_res_keys)):
-        val = ''
-        res_fields.append({'key': k, 'val': val})
+        res_fields.append({'key': k, 'val': '', 'type': 'text'})
     
     return render(request, 'experiments/form.html', {
         'formulations': formulations,
@@ -120,16 +131,27 @@ def experiment_compare(request):
     
     result_keys = set()
     condition_keys = set()
+    chart_data = []
+    
     for exp in experiments:
         if isinstance(exp.results, dict):
             result_keys.update(exp.results.keys())
         if isinstance(exp.conditions, dict):
             condition_keys.update(exp.conditions.keys())
             
+        chart_data.append({
+            'id': exp.id,
+            'label': f"Exp #{exp.id} ({exp.formulation.name})",
+            'conditions': exp.conditions if isinstance(exp.conditions, dict) else {},
+            'results': exp.results if isinstance(exp.results, dict) else {},
+        })
+            
+    import json
     return render(request, 'experiments/compare.html', {
         'experiments': experiments,
         'result_keys': sorted(list(result_keys)),
-        'condition_keys': sorted(list(condition_keys))
+        'condition_keys': sorted(list(condition_keys)),
+        'chart_data_json': json.dumps(chart_data)
     })
 
 def experiment_delete(request, pk):
@@ -150,8 +172,13 @@ def experiment_edit(request, pk):
         cond_keys = request.POST.getlist('condition_keys[]')
         cond_values = request.POST.getlist('condition_values[]')
         for k, v in zip(cond_keys, cond_values):
-            if k.strip() and v.strip():
-                conditions_dict[k.strip()] = v.strip()
+            k = k.strip()
+            v = v.strip()
+            if k and v:
+                try:
+                    conditions_dict[k] = float(v)
+                except ValueError:
+                    conditions_dict[k] = v
         experiment.conditions = conditions_dict
 
         # Handle dynamic result metrics
@@ -159,11 +186,22 @@ def experiment_edit(request, pk):
         res_keys = request.POST.getlist('result_keys[]')
         res_values = request.POST.getlist('result_values[]')
         for k, v in zip(res_keys, res_values):
-            if k.strip() and v.strip():
-                results_dict[k.strip()] = v.strip()
+            k = k.strip()
+            v = v.strip()
+            if k and v:
+                try:
+                    results_dict[k] = float(v)
+                except ValueError:
+                    results_dict[k] = v
         experiment.results = results_dict
+        experiment.memo = request.POST.get('memo', '')
                 
         experiment.save()
+        
+        ExperimentImage.objects.filter(experiment=experiment).update(is_representative=False)
+        rep_ids = request.POST.getlist('representative_image_ids[]')
+        if rep_ids:
+            ExperimentImage.objects.filter(id__in=rep_ids, experiment=experiment).update(is_representative=True)
         
         # Handle file deletions
         images_to_delete = request.POST.getlist('delete_image_ids[]')
@@ -206,25 +244,31 @@ def experiment_edit(request, pk):
     cond_fields = []
     for k in sorted(list(all_cond_keys)):
         val = experiment.conditions.get(k, '') if isinstance(experiment.conditions, dict) else ''
-        cond_fields.append({'key': k, 'val': val})
+        input_type = 'number' if isinstance(val, (int, float)) and val != '' else 'text'
+        cond_fields.append({'key': k, 'val': val, 'type': input_type})
         
     res_fields = []
     for k in sorted(list(all_res_keys)):
         val = experiment.results.get(k, '') if isinstance(experiment.results, dict) else ''
-        res_fields.append({'key': k, 'val': val})
+        input_type = 'number' if isinstance(val, (int, float)) and val != '' else 'text'
+        res_fields.append({'key': k, 'val': val, 'type': input_type})
     
     # Pre-render existing files HTML to avoid VSCode formatter breaking template tags
     existing_images_html = ''
     for i, img in enumerate(experiment.images.all()):
+        checked = 'checked' if img.is_representative else ''
         existing_images_html += (
             '<div style="display: flex; gap: 12px; align-items: center; padding: 8px; '
             'border: 1px solid var(--border-color); border-radius: 6px; background-color: white;">'
             '<img src="{}" style="height: 40px; border-radius: 4px;">'
             '<span style="flex: 1; font-size: 0.875rem; color: var(--text-main);">Image #{}</span>'
+            '<label style="color: #047857; font-size: 0.875rem; display: flex; align-items: center; gap: 4px; cursor: pointer; margin-right: 12px;">'
+            '<input type="checkbox" name="representative_image_ids[]" value="{}" {}> 대표 이미지 지정'
+            '</label>'
             '<label style="color: #EF4444; font-size: 0.875rem; display: flex; align-items: center; gap: 4px; cursor: pointer;">'
             '<input type="checkbox" name="delete_image_ids[]" value="{}"> Delete'
             '</label></div>'
-        ).format(img.image.url, i + 1, img.id)
+        ).format(img.image.url, i + 1, img.id, checked, img.id)
     
     existing_raw_html = ''
     for rf in experiment.raw_files.all():

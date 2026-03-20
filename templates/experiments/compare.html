@@ -16,13 +16,13 @@
 </div>
 
 <div class="card" style="padding: 24px; overflow-x: auto;">
-    <table style="width: 100%; border-collapse: collapse; text-align: left; word-wrap: break-word;">
+    <table style="table-layout: fixed; border-collapse: collapse; text-align: left; word-wrap: break-word;">
         <thead
             style="background-color: #F9FAFB; color: var(--text-muted); font-size: 0.875rem; border-bottom: 1px solid var(--border-color);">
             <tr>
-                <th style="padding: 12px 16px; font-weight: 600; min-width: 150px;">Attribute</th>
+                <th style="padding: 12px 16px; font-weight: 600; width: 220px; min-width: 220px; max-width: 220px;">Attribute</th>
                 {% for exp in experiments %}
-                <th style="padding: 12px 16px; font-weight: 600; min-width: 150px;">
+                <th style="padding: 12px 16px; font-weight: 600; width: 280px; min-width: 280px; max-width: 280px;">
                     Exp #{{ exp.id }}<br>
                     <span style="font-weight: 400; font-size: 0.75rem;">{{ exp.formulation.name }}</span>
                 </th>
@@ -50,7 +50,6 @@
                     Date Performed</td>
                 {% for exp in experiments %}
                 <td style="padding: 12px 16px; font-size: 0.875rem; color: #4B5563;">
-                    <!-- Forced single-line to avoid formatter breaks -->
                     <span>{{ exp.formulation.created_at|date:"Y-m-d H:i" }}</span>
                 </td>
                 {% endfor %}
@@ -63,14 +62,14 @@
                 </td>
                 {% for exp in experiments %}
                 <td style="padding: 12px 16px; vertical-align: top;">
-                    {% if exp.images.all %}
+                    {% if exp.representative_images %}
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-                        {% for img in exp.images.all %}
+                        {% for img in exp.representative_images %}
                         <a href="#" class="gallery-trigger-btn"
                             data-images='[{% for img_inner in exp.images.all %}{"url":"{{ img_inner.image.url|escapejs }}", "desc":"{{ img_inner.description|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
-                            style="display: block;">
+                            style="display: block; {% if exp.representative_images|length == 1 %}grid-column: span 2;{% endif %}">
                             <img src="{{ img.image.url }}" alt="Experiment Image"
-                                style="width: 100%; height: 100px; border-radius: 4px; border: 1px solid #E5E7EB; object-fit: cover; transition: transform 0.2s;"
+                                style="width: 100%; aspect-ratio: 1 / 1; border-radius: 4px; border: 1px solid #E5E7EB; object-fit: cover; transition: transform 0.2s;"
                                 onmouseover="this.style.transform='scale(1.05)'"
                                 onmouseout="this.style.transform='scale(1)'">
                         </a>
@@ -99,7 +98,6 @@
                     {% for k, v in exp.conditions.items %}
                     {% if k == key %}<b>{{ v }}</b>{% endif %}
                     {% endfor %}
-                    <!-- Fallback empty check implies missing data handled simply by empty space if no match -->
                 </td>
                 {% endfor %}
             </tr>
@@ -153,6 +151,71 @@
     </table>
 </div>
 
+<!-- Data Visualization Card (below comparison table) -->
+<div class="card" style="padding: 24px; margin-top: 24px;">
+    <h3 style="margin-top: 0; color: #111827; margin-bottom: 16px; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px; font-size: 1.25rem;">
+        <i class="fas fa-chart-bar" style="color: #3B82F6; margin-right: 8px;"></i> Data Visualization
+    </h3>
+    
+    <div style="display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap;">
+        <!-- X-Axis Selector -->
+        <div style="flex: 1; min-width: 220px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.8125rem; color: #374151;">
+                <i class="fas fa-arrows-alt-h" style="color: #6B7280; margin-right: 4px;"></i> X-Axis
+            </label>
+            <select id="chart-x-axis" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: white; font-size: 0.875rem;">
+                <option value="">Select X-axis...</option>
+                <optgroup label="📋 Identifier">
+                    <option value="__exp_name__">Experiment Name</option>
+                </optgroup>
+                {% if condition_keys %}
+                <optgroup label="🔬 Conditions">
+                    {% for key in condition_keys %}
+                    <option value="cond:{{ key }}">{{ key|title }}</option>
+                    {% endfor %}
+                </optgroup>
+                {% endif %}
+                {% if result_keys %}
+                <optgroup label="📊 Metrics">
+                    {% for key in result_keys %}
+                    <option value="res:{{ key }}">{{ key|title }}</option>
+                    {% endfor %}
+                </optgroup>
+                {% endif %}
+            </select>
+        </div>
+
+        <!-- Y-Axis Multi-Select (up to 4) -->
+        <div style="flex: 2; min-width: 300px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.8125rem; color: #374151;">
+                <i class="fas fa-arrows-alt-v" style="color: #6B7280; margin-right: 4px;"></i> Y-Axis (select 1–4 metrics)
+            </label>
+            <div id="y-axis-options" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                {% for key in condition_keys %}
+                <label style="display: flex; align-items: center; gap: 5px; padding: 6px 12px; background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 20px; font-size: 0.8125rem; cursor: pointer; transition: all 0.15s; color: #065F46;">
+                    <input type="checkbox" class="y-axis-check" value="cond:{{ key }}" style="cursor: pointer;"> {{ key|title }}
+                </label>
+                {% endfor %}
+                {% for key in result_keys %}
+                <label style="display: flex; align-items: center; gap: 5px; padding: 6px 12px; background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 20px; font-size: 0.8125rem; cursor: pointer; transition: all 0.15s; color: #5B21B6;">
+                    <input type="checkbox" class="y-axis-check" value="res:{{ key }}" style="cursor: pointer;"> {{ key|title }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div style="display: flex; align-items: flex-end;">
+            <button type="button" id="generate-chart-btn" class="btn-primary" style="padding: 10px 24px; white-space: nowrap;">
+                <i class="fas fa-chart-line" style="margin-right: 6px;"></i> Generate
+            </button>
+        </div>
+    </div>
+    
+    <div style="width: 100%; height: 420px; position: relative; background-color: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 16px;">
+        <canvas id="comparisonChart"></canvas>
+    </div>
+</div>
+
 <!-- Custom Image Gallery Modal -->
 <div id="image-gallery-modal"
     style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
@@ -181,8 +244,10 @@
     <div id="gallery-counter" style="color: white; margin-top: 50px; font-size: 1.1rem; font-weight: 500;"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // --- Image Gallery Logic ---
         const modal = document.getElementById('image-gallery-modal');
         const modalImg = document.getElementById('gallery-image');
         const caption = document.getElementById('gallery-caption');
@@ -262,6 +327,137 @@
                 if (e.key === 'Escape') modal.style.display = 'none';
                 if (e.key === 'ArrowLeft') prevBtn.click();
                 if (e.key === 'ArrowRight') nextBtn.click();
+            }
+        });
+        
+        // --- Chart.js Visualization Logic ---
+        const rawChartDataStr = '{{ chart_data_json|escapejs }}';
+        let rawChartData = [];
+        try { if(rawChartDataStr) rawChartData = JSON.parse(rawChartDataStr); } catch (e) { console.error('Error parsing chart data', e); }
+        
+        let comparisonChart = null;
+
+        // Limit Y-axis checkboxes to 4
+        document.querySelectorAll('.y-axis-check').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const checked = document.querySelectorAll('.y-axis-check:checked');
+                if (checked.length > 4) { this.checked = false; alert('You can select up to 4 Y-axis metrics.'); }
+            });
+        });
+        
+        document.getElementById('generate-chart-btn').addEventListener('click', function() {
+            const xAxisVal = document.getElementById('chart-x-axis').value;
+            const yChecked = document.querySelectorAll('.y-axis-check:checked');
+            
+            if (!xAxisVal) { alert("Please select an X-axis."); return; }
+            if (yChecked.length === 0) { alert("Please select at least one Y-axis metric."); return; }
+            
+            const yAxes = Array.from(yChecked).map(cb => cb.value);
+            const isCategorical = (xAxisVal === '__exp_name__');
+            
+            const colors = [
+                { bg: 'rgba(59, 130, 246, 0.7)', border: 'rgba(59, 130, 246, 1)' },
+                { bg: 'rgba(16, 185, 129, 0.7)', border: 'rgba(16, 185, 129, 1)' },
+                { bg: 'rgba(245, 158, 11, 0.7)', border: 'rgba(245, 158, 11, 1)' },
+                { bg: 'rgba(239, 68, 68, 0.7)', border: 'rgba(239, 68, 68, 1)' }
+            ];
+
+            // Helper to get value from experiment data
+            function getVal(exp, key) {
+                if (key.startsWith('cond:')) return exp.conditions[key.substring(5)];
+                if (key.startsWith('res:')) return exp.results[key.substring(4)];
+                return undefined;
+            }
+            function getLabel(key) {
+                if (key.startsWith('cond:')) return key.substring(5);
+                if (key.startsWith('res:')) return key.substring(4);
+                return key;
+            }
+            
+            if (isCategorical) {
+                // Bar chart: experiment labels on X, grouped bars for each Y metric
+                const labels = rawChartData.map(exp => exp.label);
+                const datasets = yAxes.map((yKey, yi) => {
+                    const data = rawChartData.map(exp => {
+                        const v = getVal(exp, yKey);
+                        return v !== undefined && !isNaN(parseFloat(v)) ? parseFloat(v) : null;
+                    });
+                    return {
+                        label: getLabel(yKey),
+                        data: data,
+                        backgroundColor: colors[yi % colors.length].bg,
+                        borderColor: colors[yi % colors.length].border,
+                        borderWidth: 2,
+                        borderRadius: 4
+                    };
+                });
+
+                const ctx = document.getElementById('comparisonChart').getContext('2d');
+                if (comparisonChart) comparisonChart.destroy();
+                comparisonChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels, datasets },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            x: { title: { display: true, text: 'Experiment', font: { weight: 'bold', size: 13 } } },
+                            y: { title: { display: true, text: yAxes.length === 1 ? getLabel(yAxes[0]) : 'Value', font: { weight: 'bold', size: 13 } }, beginAtZero: true }
+                        },
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}` } }
+                        }
+                    }
+                });
+            } else {
+                // Scatter chart: numeric X, one dataset per Y metric with all experiments as points  
+                const xKey = xAxisVal;
+                const datasets = yAxes.map((yKey, yi) => {
+                    const data = [];
+                    rawChartData.forEach(exp => {
+                        const xv = getVal(exp, xKey);
+                        const yv = getVal(exp, yKey);
+                        if (xv !== undefined && yv !== undefined && !isNaN(parseFloat(xv)) && !isNaN(parseFloat(yv))) {
+                            data.push({ x: parseFloat(xv), y: parseFloat(yv), label: exp.label });
+                        }
+                    });
+                    return {
+                        label: getLabel(yKey),
+                        data: data,
+                        backgroundColor: colors[yi % colors.length].bg,
+                        borderColor: colors[yi % colors.length].border,
+                        pointRadius: 8, pointHoverRadius: 12, borderWidth: 2
+                    };
+                });
+
+                if (datasets.every(ds => ds.data.length === 0)) {
+                    alert("No valid numeric data points found."); return;
+                }
+
+                const ctx = document.getElementById('comparisonChart').getContext('2d');
+                if (comparisonChart) comparisonChart.destroy();
+                comparisonChart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: { datasets },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            x: { type: 'linear', position: 'bottom', title: { display: true, text: getLabel(xKey), font: { weight: 'bold', size: 13 } } },
+                            y: { title: { display: true, text: yAxes.length === 1 ? getLabel(yAxes[0]) : 'Value', font: { weight: 'bold', size: 13 } } }
+                        },
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => {
+                                        const pt = ctx.raw;
+                                        return `${pt.label || ctx.dataset.label}: (${ctx.parsed.x}, ${ctx.parsed.y})`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
             }
         });
     });

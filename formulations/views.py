@@ -29,13 +29,21 @@ def formulation_add(request):
         cond_keys = request.POST.getlist('condition_keys[]')
         cond_values = request.POST.getlist('condition_values[]')
         for k, v in zip(cond_keys, cond_values):
-            if k.strip() and v.strip():
-                conditions_dict[k.strip()] = v.strip()
+            k_st = k.strip()
+            v_st = v.strip()
+            if k_st and v_st:
+                try:
+                    f_val = float(v_st)
+                    conditions_dict[k_st] = int(f_val) if f_val.is_integer() else f_val
+                except ValueError:
+                    conditions_dict[k_st] = v_st
                 
+        memo = request.POST.get('memo', '')
         formulation = Formulation.objects.create(
             name=name,
             description=description,
-            conditions=conditions_dict
+            conditions=conditions_dict,
+            memo=memo
         )
         
         # Handle hierarchical ingredients list
@@ -65,7 +73,7 @@ def formulation_add(request):
             
     cond_fields = []
     for k in sorted(list(all_cond_keys)):
-        cond_fields.append({'key': k, 'val': ''})
+        cond_fields.append({'key': k, 'val': '', 'type': 'number'})
     
     return render(request, 'formulations/form.html', {
         'materials': materials,
@@ -84,9 +92,16 @@ def formulation_edit(request, pk):
         cond_keys = request.POST.getlist('condition_keys[]')
         cond_values = request.POST.getlist('condition_values[]')
         for k, v in zip(cond_keys, cond_values):
-            if k.strip() and v.strip():
-                conditions_dict[k.strip()] = v.strip()
+            k_st = k.strip()
+            v_st = v.strip()
+            if k_st and v_st:
+                try:
+                    f_val = float(v_st)
+                    conditions_dict[k_st] = int(f_val) if f_val.is_integer() else f_val
+                except ValueError:
+                    conditions_dict[k_st] = v_st
         formulation.conditions = conditions_dict
+        formulation.memo = request.POST.get('memo', '')
         
         formulation.save()
         
@@ -136,7 +151,8 @@ def formulation_edit(request, pk):
     cond_fields = []
     for k in sorted(list(all_cond_keys)):
         val = formulation.conditions.get(k, '') if isinstance(formulation.conditions, dict) else ''
-        cond_fields.append({'key': k, 'val': val})
+        val_type = 'number' if isinstance(val, (int, float)) else 'text'
+        cond_fields.append({'key': k, 'val': val, 'type': val_type})
     
     return render(request, 'formulations/form.html', {
         'formulation': formulation,

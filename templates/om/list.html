@@ -1,0 +1,499 @@
+{% extends 'base.html' %}
+
+{% block title %}Organic Materials - R&D Platform{% endblock %}
+
+{% block content %}
+<style>
+    .col-filter-input {
+        width: 100%; padding: 5px 8px; border: 1px solid #E2E8F0; border-radius: 4px;
+        font-size: 0.7rem; background: white; color: #374151; outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s; box-sizing: border-box;
+    }
+    .col-filter-input:focus { border-color: #3B82F6; box-shadow: 0 0 0 2px rgba(59,130,246,0.12); background: #F8FAFF; }
+    .col-filter-input::placeholder { color: #B0B8C4; }
+    .filter-row-text th, .filter-row-range th { padding: 4px 12px !important; background: #F1F5F9 !important; }
+    .filter-row-range th { border-bottom: 2px solid #DBEAFE !important; }
+    .range-wrap { display: flex; gap: 2px; }
+    .range-wrap input { width: 50%; min-width: 0; text-align: center; }
+    /* Spreadsheet batch import */
+    .batch-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+    .batch-table th { background: #F1F5F9; padding: 8px 10px; border: 1px solid #E2E8F0; font-weight: 600; color: #374151; text-align: left; white-space: nowrap; }
+    .batch-table td { padding: 0; border: 1px solid #E2E8F0; }
+    .batch-table td input { width: 100%; padding: 7px 10px; border: none; outline: none; font-size: 0.8125rem; background: transparent; }
+    .batch-table td input:focus { background: #EFF6FF; }
+    .batch-table tr:hover td { background: #F9FAFB; }
+    .batch-table .row-num { background: #F9FAFB; color: #9CA3AF; text-align: center; width: 36px; font-size: 0.75rem; padding: 7px 6px; }
+</style>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h1 class="page-title" style="margin-bottom: 0;">Organic Materials</h1>
+    <div>
+        <button id="om-batch-delete-btn" class="btn-primary" style="background-color: #EF4444; margin-right: 12px; display: none;">
+            <i class="fas fa-trash"></i> Delete Selected (<span id="om-selected-count">0</span>)
+        </button>
+        <button id="om-batch-import-btn" class="btn-primary" style="background-color: #10B981; margin-right: 12px;">
+            <i class="fas fa-file-excel"></i> Batch Add (Excel Paste)
+        </button>
+        <a href="{% url 'om:add' %}" class="btn-primary">+ Add Organic Material</a>
+    </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+    <table id="data-table" class="display" style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead style="background-color: #F9FAFB; color: var(--text-muted); font-size: 0.875rem; border-bottom: 1px solid var(--border-color);">
+            <tr>
+                <th style="padding: 12px 16px; width: 40px; text-align: center;" data-filter="none">
+                    <input type="checkbox" id="om-select-all" style="cursor: pointer;">
+                </th>
+                <th style="padding: 12px 16px; font-weight: 500;" data-filter="text">Name</th>
+                <th style="padding: 12px 16px; font-weight: 500;" data-filter="text">Type</th>
+                <th style="padding: 12px 16px; font-weight: 500;" data-filter="num">Cost ($/kg)</th>
+                <th style="padding: 12px 16px; font-weight: 500; text-align: center;" data-filter="text">Commercial</th>
+                <th style="padding: 12px 16px; font-weight: 500;" data-filter="text">Added On</th>
+                {% if slot_config %}
+                    {% if slot_config.slot_1_name %}<th style="padding: 12px 16px; font-weight: 600; color: #047857;" data-filter="num">[Slot] {{ slot_config.slot_1_name }}</th>{% endif %}
+                    {% if slot_config.slot_2_name %}<th style="padding: 12px 16px; font-weight: 600; color: #047857;" data-filter="num">[Slot] {{ slot_config.slot_2_name }}</th>{% endif %}
+                    {% if slot_config.slot_3_name %}<th style="padding: 12px 16px; font-weight: 600; color: #047857;" data-filter="num">[Slot] {{ slot_config.slot_3_name }}</th>{% endif %}
+                    {% if slot_config.slot_4_name %}<th style="padding: 12px 16px; font-weight: 600; color: #047857;" data-filter="num">[Slot] {{ slot_config.slot_4_name }}</th>{% endif %}
+                    {% if slot_config.slot_5_name %}<th style="padding: 12px 16px; font-weight: 600; color: #047857;" data-filter="num">[Slot] {{ slot_config.slot_5_name }}</th>{% endif %}
+                {% endif %}
+                {% for key in custom_keys %}
+                <th style="padding: 12px 16px; font-weight: 500;" data-filter="num"><span style="color:var(--primary-color);">[Custom]</span> {{ key|title }}</th>
+                {% endfor %}
+                <th style="padding: 12px 16px; font-weight: 500;" data-filter="none">Images</th>
+                <th style="padding: 12px 16px; font-weight: 500;" data-filter="none">Raw Data</th>
+                <th style="padding: 12px 16px; font-weight: 500; text-align: right;" data-filter="none">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mat in om %}
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 14px 16px; text-align: center;">
+                    <input type="checkbox" class="om-row-checkbox" value="{{ mat.id }}" style="cursor: pointer;">
+                </td>
+                <td style="padding: 14px 16px; font-weight: 500;">{{ mat.name }}</td>
+                <td style="padding: 14px 16px;">
+                    <span style="background-color: #E0E7FF; color: #3730A3; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">
+                        {{ mat.material_type }}
+                    </span>
+                </td>
+                <td style="padding: 14px 16px; font-weight: 600; color: #059669;">
+                    {% if mat.cost_per_kg %}${{ mat.cost_per_kg }}{% else %}-{% endif %}
+                </td>
+                <td style="padding: 14px 16px; text-align: center;">
+                    {% if mat.is_commercial %}
+                    <i class="fas fa-check-circle" style="color: #10B981; font-size: 1.25rem;" title="Commercially Available"></i>
+                    {% else %}
+                    <i class="fas fa-times-circle" style="color: #9CA3AF; font-size: 1.25rem;" title="Not Commercial"></i>
+                    {% endif %}
+                </td>
+                <td style="padding: 14px 16px; color: var(--text-muted);">{{ mat.created_at|date:"Y-m-d" }}</td>
+                {% if slot_config %}
+                    {% if slot_config.slot_1_name %}<td style="padding: 14px 16px; font-weight: 600;">{{ mat.num_attr_1|default:"-" }}</td>{% endif %}
+                    {% if slot_config.slot_2_name %}<td style="padding: 14px 16px; font-weight: 600;">{{ mat.num_attr_2|default:"-" }}</td>{% endif %}
+                    {% if slot_config.slot_3_name %}<td style="padding: 14px 16px; font-weight: 600;">{{ mat.num_attr_3|default:"-" }}</td>{% endif %}
+                    {% if slot_config.slot_4_name %}<td style="padding: 14px 16px; font-weight: 600;">{{ mat.num_attr_4|default:"-" }}</td>{% endif %}
+                    {% if slot_config.slot_5_name %}<td style="padding: 14px 16px; font-weight: 600;">{{ mat.num_attr_5|default:"-" }}</td>{% endif %}
+                {% endif %}
+                {% for key in custom_keys %}
+                <td style="padding: 14px 16px;">
+                    {% for k, v in mat.custom_attributes.items %}{% if k == key %}{{ v }}{% endif %}{% endfor %}
+                </td>
+                {% endfor %}
+                <td style="padding: 14px 16px;">
+                    {% if mat.images.all %}
+                    <button type="button" class="gallery-trigger-btn"
+                        data-images='[{% for img in mat.images.all %}{"url":"{{ img.image.url|escapejs }}", "desc":"{{ img.description|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                        style="background: none; border: 1px solid #BFDBFE; color: #2563EB; font-size: 0.8125rem; font-weight: 500; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-images"></i> View {{ mat.images.count }}
+                    </button>
+                    {% else %}<span style="color: #9CA3AF; font-size: 0.875rem; font-style: italic;">No images</span>{% endif %}
+                </td>
+                <td style="padding: 14px 16px;">
+                    {% if mat.raw_files.all %}
+                    <button type="button" class="raw-data-trigger-btn"
+                        data-files='[{% for r_file in mat.raw_files.all %}{"url":"{{ r_file.file.url|escapejs }}", "name":"{{ r_file.description|default:r_file.file.name|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}]'
+                        style="background: none; border: 1px solid #C7D2FE; color: #4338CA; font-size: 0.8125rem; font-weight: 500; padding: 6px 12px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                        <i class="fas fa-file-download"></i> View {{ mat.raw_files.count }}
+                    </button>
+                    {% else %}<span style="color: #9CA3AF; font-size: 0.875rem; font-style: italic;">No files</span>{% endif %}
+                </td>
+                <td style="padding: 14px 16px; text-align: right;">
+                    <a href="{% url 'om:edit' mat.id %}" style="color: var(--primary-color); text-decoration: none; font-weight: 500; margin-right: 12px;">Edit</a>
+                    <a href="#" style="color: #EF4444; text-decoration: none; font-weight: 500;">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Raw Data Modal -->
+<div id="raw-data-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+    <div style="background-color: white; border-radius: 8px; width: 90%; max-width: 500px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;">
+        <div style="position: absolute; top: 16px; right: 20px; cursor: pointer; color: #9CA3AF; font-size: 1.5rem;" id="raw-data-close">&times;</div>
+        <h3 style="margin-top: 0; color: #111827; margin-bottom: 20px; border-bottom: 1px solid #E5E7EB; padding-bottom: 12px; font-size: 1.25rem;">Attached Raw Data</h3>
+        <ul id="raw-data-list" style="list-style-type: none; padding: 0; margin: 0; max-height: 50vh; overflow-y: auto;"></ul>
+    </div>
+</div>
+
+<!-- Image Gallery Modal -->
+<div id="image-gallery-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column;">
+    <div style="position: absolute; top: 20px; right: 30px; cursor: pointer; color: white; font-size: 2rem;" id="gallery-close">&times;</div>
+    <div style="display: flex; align-items: center; justify-content: center; width: 100%; max-width: 1200px; padding: 0 40px; position: relative;">
+        <button id="gallery-prev" style="background: none; border: none; color: white; font-size: 4rem; cursor: pointer; position: absolute; left: 20px;">&#10094;</button>
+        <img id="gallery-image" src="" style="max-height: 80vh; max-width: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <div id="gallery-caption" style="position: absolute; bottom: -40px; color: white; text-align: center; width: 100%; font-size: 1.1rem;"></div>
+        <button id="gallery-next" style="background: none; border: none; color: white; font-size: 4rem; cursor: pointer; position: absolute; right: 20px;">&#10095;</button>
+    </div>
+    <div id="gallery-counter" style="color: white; margin-top: 50px; font-size: 1.1rem; font-weight: 500;"></div>
+</div>
+
+<!-- Spreadsheet-Style Batch Import Modal -->
+<div id="batch-import-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+    <div style="background-color: white; border-radius: 8px; width: 95%; max-width: 960px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative;">
+        <div style="position: absolute; top: 16px; right: 20px; cursor: pointer; color: #9CA3AF; font-size: 1.5rem;" id="batch-import-close">&times;</div>
+        <div style="padding: 20px 24px 12px;">
+            <h3 style="margin: 0 0 4px; color: #111827; font-size: 1.25rem;">
+                <i class="fas fa-file-excel" style="color: #10B981;"></i> Batch Import
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.8125rem; margin: 0;">
+                Type directly into cells or <b>paste from Excel</b> (Ctrl+V). Columns: <b>name</b> (required), <b>material_type</b>, and any custom attributes.
+            </p>
+        </div>
+        <div style="padding: 0 24px; overflow: auto; flex: 1;">
+            <table class="batch-table" id="batch-table">
+                <thead>
+                    <tr>
+                        <th style="width: 36px; text-align: center;">#</th>
+                        <th>name *</th>
+                        <th>material_type</th>
+                        <th>cost_per_kg</th>
+                        <th>custom_attr_1</th>
+                        <th>custom_attr_2</th>
+                        <th style="width: 36px; text-align: center;">
+                            <button type="button" id="batch-add-col" title="Add Column" style="background: none; border: none; color: #3B82F6; cursor: pointer; font-size: 1rem; font-weight: 700;">+</button>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="batch-tbody"></tbody>
+            </table>
+        </div>
+        <div style="padding: 12px 24px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #E5E7EB;">
+            <button type="button" id="batch-add-row" style="padding: 6px 14px; background: white; color: #3B82F6; border: 1px solid #BFDBFE; border-radius: 6px; cursor: pointer; font-size: 0.8125rem; font-weight: 500;"><i class="fas fa-plus" style="margin-right: 4px;"></i>Add 5 Rows</button>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" id="batch-import-cancel" style="padding: 10px 20px; background: none; border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-weight: 500;">Cancel</button>
+                <button type="button" id="batch-import-submit" class="btn-primary" style="padding: 10px 24px;">Import Data</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // === Build filter rows dynamically ===
+    const headerRow = document.querySelector('#data-table thead tr');
+    const ths = headerRow.querySelectorAll('th');
+    const textRow = document.createElement('tr'); textRow.className = 'filter-row-text';
+    const rangeRow = document.createElement('tr'); rangeRow.className = 'filter-row-range';
+
+    ths.forEach((th, idx) => {
+        const ft = th.dataset.filter || 'none';
+        const tTh = document.createElement('th'), rTh = document.createElement('th');
+        if (ft === 'text') {
+            tTh.innerHTML = `<input type="text" class="col-filter-input cf-text" data-col="${idx}" placeholder="🔍 Search...">`;
+            rTh.innerHTML = '';
+        } else if (ft === 'num') {
+            tTh.innerHTML = `<input type="text" class="col-filter-input cf-text" data-col="${idx}" placeholder="🔍 Search...">`;
+            rTh.innerHTML = `<div class="range-wrap"><input type="number" class="col-filter-input cf-min" data-col="${idx}" placeholder="Min" step="any"><input type="number" class="col-filter-input cf-max" data-col="${idx}" placeholder="Max" step="any"></div>`;
+        } else { tTh.innerHTML = ''; rTh.innerHTML = ''; }
+        textRow.appendChild(tTh); rangeRow.appendChild(rTh);
+    });
+    headerRow.parentNode.appendChild(textRow);
+    headerRow.parentNode.appendChild(rangeRow);
+
+    // === DataTables Init ===
+    const table = $('#data-table').DataTable({
+        pageLength: 25, order: [[5, "desc"]], orderCellsTop: true,
+        columnDefs: [{ orderable: false, targets: [0, 4, -1, -2, -3] }],
+        language: { search: "Global Search:" }
+    });
+
+    // Per-column text search
+    document.querySelectorAll('.cf-text').forEach(input => {
+        input.addEventListener('keyup', function() { table.column(+this.dataset.col).search(this.value).draw(); });
+    });
+    // Range filter
+    document.querySelectorAll('.cf-min, .cf-max').forEach(input => {
+        input.addEventListener('keyup', function() { table.draw(); });
+        input.addEventListener('change', function() { table.draw(); });
+    });
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+        if (settings.nTable.id !== 'data-table') return true;
+        const mins = document.querySelectorAll('.cf-min');
+        for (const mi of mins) {
+            const col = +mi.dataset.col;
+            const mx = document.querySelector(`.cf-max[data-col="${col}"]`);
+            const minV = parseFloat(mi.value), maxV = mx ? parseFloat(mx.value) : NaN;
+            if (isNaN(minV) && isNaN(maxV)) continue;
+            const raw = data[col].trim();
+            if (raw === '-' || raw === '' || raw === 'None') return false;
+            const val = parseFloat(raw.replace(/[^0-9.-]/g, ''));
+            if (isNaN(val)) return false;
+            if (!isNaN(minV) && val < minV) return false;
+            if (!isNaN(maxV) && val > maxV) return false;
+        }
+        return true;
+    });
+
+    // === Bulk Delete ===
+    const batchDeleteBtn = document.getElementById('om-batch-delete-btn');
+    const selectedCountSpan = document.getElementById('om-selected-count');
+    const selectAllCheckbox = document.getElementById('om-select-all');
+
+    function updateDeleteBtnVisibility() {
+        const checkedCount = table.$('.om-row-checkbox:checked').length;
+        selectedCountSpan.innerText = checkedCount;
+        batchDeleteBtn.style.display = checkedCount > 0 ? 'inline-block' : 'none';
+    }
+
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            table.rows({search: 'applied'}).nodes().to$().find('.om-row-checkbox').prop('checked', this.checked);
+            updateDeleteBtnVisibility();
+        });
+    }
+    $('#data-table tbody').on('change', '.om-row-checkbox', function() {
+        updateDeleteBtnVisibility();
+        const vis = table.rows({search: 'applied'}).nodes().to$().find('.om-row-checkbox');
+        if (selectAllCheckbox) selectAllCheckbox.checked = vis.length > 0 && vis.length === vis.filter(':checked').length;
+    });
+
+    if (batchDeleteBtn) {
+        batchDeleteBtn.addEventListener('click', async () => {
+            const ids = Array.from(table.$('.om-row-checkbox:checked')).map(cb => cb.value);
+            if (!ids.length) return;
+            if (!confirm(`Delete ${ids.length} selected row(s)? This cannot be undone.`)) return;
+            batchDeleteBtn.disabled = true; batchDeleteBtn.innerText = 'Deleting...';
+            try {
+                const resp = await fetch("{% url 'om:batch_delete' %}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }, body: JSON.stringify({ mat_ids: ids }) });
+                const res = await resp.json();
+                if (resp.ok && res.status === 'success') { alert(`Deleted ${res.deleted_count} items.`); window.location.reload(); }
+                else { alert(`Failed: ${res.message}`); batchDeleteBtn.disabled = false; updateDeleteBtnVisibility(); }
+            } catch (e) { alert('Error during delete.'); batchDeleteBtn.disabled = false; updateDeleteBtnVisibility(); }
+        });
+    }
+
+    // === Modals: Raw Data ===
+    const rawModal = document.getElementById('raw-data-modal');
+    const rawList = document.getElementById('raw-data-list');
+    document.getElementById('raw-data-close').addEventListener('click', () => rawModal.style.display = 'none');
+    rawModal.addEventListener('click', e => { if (e.target === rawModal) rawModal.style.display = 'none'; });
+    $('#data-table tbody').on('click', '.raw-data-trigger-btn', function(e) {
+        e.preventDefault(); rawList.innerHTML = '';
+        try {
+            const files = JSON.parse(this.getAttribute('data-files'));
+            files.forEach(f => {
+                let name = f.name; if (name.includes('/') || name.includes('\\')) name = name.split('/').pop().split('\\').pop();
+                const li = document.createElement('li'); li.style.cssText = 'padding: 12px 0; border-bottom: 1px solid #F3F4F6;';
+                li.innerHTML = `<a href="${f.url}" target="_blank" style="color:#2563EB;text-decoration:none;display:flex;align-items:center;gap:8px;font-weight:500;"><i class="fas fa-file-csv" style="color:#10B981;font-size:1.2rem;"></i><span style="word-break:break-all;">${name}</span></a>`;
+                rawList.appendChild(li);
+            });
+            rawModal.style.display = 'flex';
+        } catch (err) { console.error(err); }
+    });
+
+    // === Modals: Image Gallery ===
+    const gModal = document.getElementById('image-gallery-modal');
+    const gImg = document.getElementById('gallery-image');
+    const gCaption = document.getElementById('gallery-caption');
+    const gClose = document.getElementById('gallery-close');
+    const gPrev = document.getElementById('gallery-prev');
+    const gNext = document.getElementById('gallery-next');
+    const gCounter = document.getElementById('gallery-counter');
+    let gImages = [], gIdx = 0;
+
+    function updateGallery() {
+        gImg.src = gImages[gIdx].url; gCaption.innerText = gImages[gIdx].desc || '';
+        gCounter.innerText = `${gIdx + 1} / ${gImages.length}`;
+    }
+    document.querySelectorAll('.gallery-trigger-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            try { gImages = JSON.parse(this.getAttribute('data-images')); } catch(e) { gImages = []; }
+            if (gImages.length) { gIdx = 0; updateGallery(); gModal.style.display = 'flex'; }
+        });
+    });
+    gPrev.addEventListener('click', e => { e.stopPropagation(); if (gImages.length > 1) { gIdx = gIdx > 0 ? gIdx - 1 : gImages.length - 1; updateGallery(); }});
+    gNext.addEventListener('click', e => { e.stopPropagation(); if (gImages.length > 1) { gIdx = gIdx < gImages.length - 1 ? gIdx + 1 : 0; updateGallery(); }});
+    gClose.addEventListener('click', () => gModal.style.display = 'none');
+    gModal.addEventListener('click', e => { if (e.target === gModal) gModal.style.display = 'none'; });
+    document.addEventListener('keydown', e => {
+        if (gModal.style.display === 'flex') {
+            if (e.key === 'Escape') gModal.style.display = 'none';
+            if (e.key === 'ArrowLeft') gPrev.click();
+            if (e.key === 'ArrowRight') gNext.click();
+        }
+    });
+
+    // ============================================
+    // === Spreadsheet-Style Batch Import Logic ===
+    // ============================================
+    const batchModal = document.getElementById('batch-import-modal');
+    const batchTbody = document.getElementById('batch-tbody');
+    const batchTable = document.getElementById('batch-table');
+    const batchThead = batchTable.querySelector('thead tr');
+
+    let colCount = batchThead.children.length - 1; // minus the "+" button column
+
+    function getHeaders() {
+        const ths = batchThead.querySelectorAll('th');
+        const headers = [];
+        for (let i = 1; i < ths.length - 1; i++) headers.push(ths[i].textContent.trim().replace(' *', ''));
+        return headers;
+    }
+
+    function addBatchRows(count) {
+        const headers = getHeaders();
+        const existingRows = batchTbody.children.length;
+        for (let r = 0; r < count; r++) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="row-num">${existingRows + r + 1}</td>`;
+            headers.forEach((h, ci) => {
+                tr.innerHTML += `<td><input type="text" data-col="${ci}" placeholder="${h}"></td>`;
+            });
+            tr.innerHTML += '<td></td>';
+            batchTbody.appendChild(tr);
+        }
+    }
+
+    function addBatchColumn() {
+        const newColName = prompt('Enter column name:');
+        if (!newColName) return;
+        // Add header
+        const plusTh = batchThead.lastElementChild;
+        const newTh = document.createElement('th');
+        newTh.textContent = newColName;
+        batchThead.insertBefore(newTh, plusTh);
+        // Add cells to existing rows
+        const rows = batchTbody.querySelectorAll('tr');
+        const newIdx = getHeaders().length - 1;
+        rows.forEach(tr => {
+            const lastTd = tr.lastElementChild;
+            const newTd = document.createElement('td');
+            newTd.innerHTML = `<input type="text" data-col="${newIdx}" placeholder="${newColName}">`;
+            tr.insertBefore(newTd, lastTd);
+        });
+    }
+
+    function resetBatchTable() {
+        // Reset headers to defaults
+        batchThead.innerHTML = `
+            <th style="width: 36px; text-align: center;">#</th>
+            <th>name *</th>
+            <th>material_type</th>
+            <th>cost_per_kg</th>
+            <th>custom_attr_1</th>
+            <th>custom_attr_2</th>
+            <th style="width: 36px; text-align: center;"><button type="button" id="batch-add-col" title="Add Column" style="background:none;border:none;color:#3B82F6;cursor:pointer;font-size:1rem;font-weight:700;">+</button></th>
+        `;
+        batchTbody.innerHTML = '';
+        addBatchRows(5);
+        document.getElementById('batch-add-col').addEventListener('click', addBatchColumn);
+    }
+
+    // Handle paste from Excel
+    batchTbody.addEventListener('paste', function(e) {
+        const clipText = (e.clipboardData || window.clipboardData).getData('text');
+        if (!clipText || !clipText.includes('\t')) return; // not tabular data
+        e.preventDefault();
+
+        const pastedRows = clipText.split('\n').map(r => r.split('\t').map(c => c.trim())).filter(r => r.some(c => c));
+        if (!pastedRows.length) return;
+
+        // Detect if first row looks like headers
+        const firstRow = pastedRows[0];
+        const knownHeaders = ['name', 'material_type', 'type', 'cost_per_kg', 'cost'];
+        const isHeader = firstRow.some(cell => knownHeaders.includes(cell.toLowerCase().replace(' ', '_')));
+
+        let dataStartIdx = 0;
+        if (isHeader) {
+            // Rebuild table headers from pasted data
+            const plusTh = batchThead.lastElementChild;
+            // Remove all except # and +
+            while (batchThead.children.length > 2) { batchThead.removeChild(batchThead.children[1]); }
+            firstRow.forEach(h => {
+                const th = document.createElement('th');
+                th.textContent = h;
+                if (h.toLowerCase() === 'name') th.textContent = 'name *';
+                batchThead.insertBefore(th, plusTh);
+            });
+            dataStartIdx = 1;
+        }
+
+        // Clear and fill body
+        batchTbody.innerHTML = '';
+        const headers = getHeaders();
+        for (let i = dataStartIdx; i < pastedRows.length; i++) {
+            const row = pastedRows[i];
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td class="row-num">${i - dataStartIdx + 1}</td>`;
+            headers.forEach((h, ci) => {
+                const val = ci < row.length ? row[ci] : '';
+                tr.innerHTML += `<td><input type="text" data-col="${ci}" value="${val.replace(/"/g, '&quot;')}" placeholder="${h}"></td>`;
+            });
+            tr.innerHTML += '<td></td>';
+            batchTbody.appendChild(tr);
+        }
+        // Add some extra empty rows
+        addBatchRows(3);
+    });
+
+    // Open/close
+    document.getElementById('om-batch-import-btn').addEventListener('click', () => { resetBatchTable(); batchModal.style.display = 'flex'; });
+    document.getElementById('batch-import-close').addEventListener('click', () => batchModal.style.display = 'none');
+    document.getElementById('batch-import-cancel').addEventListener('click', () => batchModal.style.display = 'none');
+    batchModal.addEventListener('click', e => { if (e.target === batchModal) batchModal.style.display = 'none'; });
+    document.getElementById('batch-add-row').addEventListener('click', () => addBatchRows(5));
+    document.getElementById('batch-add-col').addEventListener('click', addBatchColumn);
+
+    // Submit
+    document.getElementById('batch-import-submit').addEventListener('click', async function() {
+        const headers = getHeaders();
+        const nameIdx = headers.findIndex(h => h.toLowerCase().replace(' ', '') === 'name');
+        if (nameIdx === -1) { alert('A "name" column is required.'); return; }
+        const typeIdx = headers.findIndex(h => ['material_type', 'type'].includes(h.toLowerCase().replace(' ', '_')));
+
+        const materials = [];
+        batchTbody.querySelectorAll('tr').forEach(tr => {
+            const inputs = tr.querySelectorAll('input[type="text"]');
+            const itemName = inputs[nameIdx] ? inputs[nameIdx].value.trim() : '';
+            if (!itemName) return;
+
+            let itemType = 'Uncategorized';
+            if (typeIdx !== -1 && inputs[typeIdx]) itemType = inputs[typeIdx].value.trim() || 'Uncategorized';
+
+            const custom_attrs = {};
+            headers.forEach((h, ci) => {
+                if (ci !== nameIdx && ci !== typeIdx && inputs[ci]) {
+                    const val = inputs[ci].value.trim();
+                    if (val) custom_attrs[h] = val;
+                }
+            });
+            materials.push({ name: itemName, material_type: itemType, custom_attributes: custom_attrs });
+        });
+
+        if (!materials.length) { alert('No valid rows to import.'); return; }
+        if (!confirm(`Import ${materials.length} records?`)) return;
+
+        this.innerText = 'Importing...'; this.disabled = true;
+        try {
+            const resp = await fetch("{% url 'om:batch_import' %}", { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' }, body: JSON.stringify({ materials }) });
+            const res = await resp.json();
+            if (resp.ok && res.status === 'success') { alert(`Imported ${res.created_count} records.`); window.location.reload(); }
+            else { alert(`Failed: ${res.message}`); this.innerText = 'Import Data'; this.disabled = false; }
+        } catch(e) { alert('Error during import.'); this.innerText = 'Import Data'; this.disabled = false; }
+    });
+});
+</script>
+{% endblock %}

@@ -23,6 +23,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.dashboard_view, name='dashboard'),
     path('materials/', include('materials.urls')),
+    path('om/', include('om.urls')),
+    path('mm/', include('mm.urls')),
     path('formulations/', include('formulations.urls')),
     path('experiments/', include('experiments.urls')),
 ]

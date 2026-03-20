@@ -35,6 +35,13 @@
                     style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
                     placeholder="Brief description of this mixture's purpose">{{ formulation.description|default:'' }}</textarea>
             </div>
+            
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">SOP / Mixing Instructions / Memo</label>
+                <textarea name="memo" rows="4"
+                    style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
+                    placeholder="Enter detailed mixing instructions, SOPs, or general notes...">{{ formulation.memo|default:'' }}</textarea>
+            </div>
         </div>
 
         <!-- Ingredients Hierarchy (Level 2 linking Level 1) -->
@@ -102,8 +109,14 @@
                         <input type="text" name="condition_keys[]" value="{{ field.key }}" readonly
                             style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: #E5E7EB; color: #6B7280; cursor: not-allowed;">
                     </div>
+                    <div style="width: 100px;">
+                        <select class="type-selector" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: white;">
+                            <option value="number" {% if field.type == 'number' %}selected{% endif %}>Number</option>
+                            <option value="text" {% if field.type == 'text' %}selected{% endif %}>Text</option>
+                        </select>
+                    </div>
                     <div style="flex: 1;">
-                        <input type="text" name="condition_values[]" placeholder="Value (Leave empty to skip)"
+                        <input type="{% if field.type == 'number' %}number{% else %}text{% endif %}" {% if field.type == 'number' %}step="any"{% endif %} class="val-input" name="condition_values[]" placeholder="Value (Leave empty to skip)"
                             value="{{ field.val }}"
                             style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                     </div>
@@ -186,6 +199,15 @@
 
         // Attach listeners to pre-populated condition rows
         condContainer.querySelectorAll('.field-group').forEach(group => {
+            const typeSel = group.querySelector('.type-selector');
+            if(typeSel) {
+                typeSel.addEventListener('change', function () {
+                    const valInput = group.querySelector('.val-input');
+                    valInput.type = this.value;
+                    if(this.value === 'number') valInput.step = 'any';
+                    else valInput.removeAttribute('step');
+                });
+            }
             group.querySelector('.remove-btn').addEventListener('click', function () {
                 condContainer.removeChild(group);
                 condCount--;
@@ -205,11 +227,24 @@
                 <div style="flex: 1;">
                     <input type="text" name="condition_keys[]" placeholder="Condition Name (e.g. RPM)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                 </div>
+                <div style="width: 100px;">
+                    <select class="type-selector" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: white;">
+                        <option value="number" selected>Number</option>
+                        <option value="text">Text</option>
+                    </select>
+                </div>
                 <div style="flex: 1;">
-                    <input type="text" name="condition_values[]" placeholder="Value (e.g. 500)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                    <input type="number" step="any" class="val-input" name="condition_values[]" placeholder="Value (e.g. 500)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                 </div>
                 <button type="button" class="remove-btn" style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
             `;
+
+            fieldGroup.querySelector('.type-selector').addEventListener('change', function () {
+                const valInput = fieldGroup.querySelector('.val-input');
+                valInput.type = this.value;
+                if(this.value === 'number') valInput.step = 'any';
+                else valInput.removeAttribute('step');
+            });
 
             condContainer.appendChild(fieldGroup);
             condCount++;

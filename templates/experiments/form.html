@@ -44,6 +44,12 @@
                     style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
                     placeholder="e.g. Tensile Strength Test, Viscosity Check">
             </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">SOP / Memo / Observations</label>
+                <textarea name="memo" rows="4"
+                    style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
+                    placeholder="Enter Standard Operating Procedures (SOP), detailed observations, or notes...">{{ experiment.memo|default:'' }}</textarea>
+            </div>
         </div>
 
         <!-- 2. Conditions Logger -->
@@ -66,9 +72,13 @@
                         <input type="text" name="condition_keys[]" value="{{ field.key }}" readonly
                             style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: #E5E7EB; color: #6B7280; cursor: not-allowed;">
                     </div>
+                    <div style="width: 100px;">
+                        <input type="text" value="{{ field.type|title }}" readonly
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: #E5E7EB; color: #6B7280; cursor: not-allowed; text-align: center;">
+                    </div>
                     <div style="flex: 1;">
-                        <input type="text" name="condition_values[]" placeholder="Value (Leave empty to skip)"
-                            value="{{ field.val }}"
+                        <input type="{{ field.type }}" name="condition_values[]" placeholder="Value (Leave empty to skip)"
+                            value="{{ field.val }}" {% if field.type == 'number' %}step="any"{% endif %}
                             style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                     </div>
                     <button type="button" class="remove-btn"
@@ -102,9 +112,13 @@
                         <input type="text" name="result_keys[]" value="{{ field.key }}" readonly
                             style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: #E5E7EB; color: #6B7280; cursor: not-allowed;">
                     </div>
+                    <div style="width: 100px;">
+                        <input type="text" value="{{ field.type|title }}" readonly
+                            style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: #E5E7EB; color: #6B7280; cursor: not-allowed; text-align: center;">
+                    </div>
                     <div style="flex: 1;">
-                        <input type="text" name="result_values[]" placeholder="Value (Leave empty to skip)"
-                            value="{{ field.val }}"
+                        <input type="{{ field.type }}" name="result_values[]" placeholder="Value (Leave empty to skip)"
+                            value="{{ field.val }}" {% if field.type == 'number' %}step="any"{% endif %}
                             style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                     </div>
                     <button type="button" class="remove-btn"
@@ -211,11 +225,24 @@
                 <div style="flex: 1;">
                     <input type="text" name="condition_keys[]" placeholder="Condition Name (e.g. Temp)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                 </div>
+                <div style="width: 100px;">
+                    <select class="type-selector" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: white;">
+                        <option value="number" selected>Number</option>
+                        <option value="text">Text</option>
+                    </select>
+                </div>
                 <div style="flex: 1;">
-                    <input type="text" name="condition_values[]" placeholder="Value (e.g. 25C)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                    <input type="number" step="any" class="val-input" name="condition_values[]" placeholder="Value (e.g. 25)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                 </div>
                 <button type="button" class="remove-btn" style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
             `;
+
+            fieldGroup.querySelector('.type-selector').addEventListener('change', function () {
+                const valInput = fieldGroup.querySelector('.val-input');
+                valInput.type = this.value;
+                if(this.value === 'number') valInput.step = 'any';
+                else valInput.removeAttribute('step');
+            });
 
             condContainer.appendChild(fieldGroup);
             condCount++;
@@ -252,11 +279,24 @@
                 <div style="flex: 1;">
                     <input type="text" name="result_keys[]" placeholder="Metric Name (e.g. Yield)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                 </div>
+                <div style="width: 100px;">
+                    <select class="type-selector" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background-color: white;">
+                        <option value="number" selected>Number</option>
+                        <option value="text">Text</option>
+                    </select>
+                </div>
                 <div style="flex: 1;">
-                    <input type="text" name="result_values[]" placeholder="Value (e.g. 45.2 MPa)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
+                    <input type="number" step="any" class="val-input" name="result_values[]" placeholder="Value (e.g. 45.2)" required style="width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                 </div>
                 <button type="button" class="remove-btn" style="background: none; border: none; color: #EF4444; cursor: pointer; padding: 4px 8px; font-weight: bold; font-size: 1.2rem;">&times;</button>
             `;
+
+            fieldGroup.querySelector('.type-selector').addEventListener('change', function () {
+                const valInput = fieldGroup.querySelector('.val-input');
+                valInput.type = this.value;
+                if(this.value === 'number') valInput.step = 'any';
+                else valInput.removeAttribute('step');
+            });
 
             resContainer.appendChild(fieldGroup);
             resCount++;
