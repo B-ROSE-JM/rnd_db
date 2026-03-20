@@ -24,7 +24,12 @@
         <h1 class="page-title" style="margin-bottom: 0;">Formulations & Conditions</h1>
         <p style="color: var(--text-muted); margin-top: 8px;">Manage mixtures and recipes composed of raw materials.</p>
     </div>
-    <a href="{% url 'formulations:add' %}" class="btn-primary">+ Add Formulation</a>
+    <div style="display: flex; gap: 12px; align-items: center;">
+        <button type="button" id="filter-toggle-btn" class="btn-primary" style="background-color: #6366F1;">
+            <i class="fas fa-filter" style="margin-right: 8px;"></i> Filter
+        </button>
+        <a href="{% url 'formulations:add' %}" class="btn-primary">+ Add Formulation</a>
+    </div>
 </div>
 
 <div class="card" style="padding: 0; overflow: hidden;">
@@ -40,6 +45,16 @@
                 </th>
                 {% endfor %}
                 <th style="padding: 12px 16px; font-weight: 500; text-align: right;" data-filter="none">Action</th>
+            </tr>
+            <tr class="filter-row-text" style="display: none; background-color: #F3F4F6;">
+                <th></th><th></th><th></th>
+                {% for key in condition_keys %}<th></th>{% endfor %}
+                <th></th>
+            </tr>
+            <tr class="filter-row-range" style="display: none; background-color: #F3F4F6;">
+                <th></th><th></th><th></th>
+                {% for key in condition_keys %}<th></th>{% endfor %}
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -84,36 +99,40 @@ document.addEventListener('DOMContentLoaded', function () {
         language: { search: "Global Search:" }
     });
 
-    // Build filter rows dynamically AFTER DataTables init
+    // Populate Filter Rows
     const headerRow = document.querySelector('#data-table thead tr:first-child');
     const ths = headerRow.querySelectorAll('th');
-
-    const textRow = document.createElement('tr');
-    textRow.className = 'filter-row-text';
-    const rangeRow = document.createElement('tr');
-    rangeRow.className = 'filter-row-range';
+    const textRow = document.querySelector('.filter-row-text');
+    const rangeRow = document.querySelector('.filter-row-range');
 
     ths.forEach((th, idx) => {
         const ftype = th.dataset.filter || 'none';
-        const textTh = document.createElement('th');
-        const rangeTh = document.createElement('th');
+        const textTh = textRow.cells[idx];
+        const rangeTh = rangeRow.cells[idx];
 
         if (ftype === 'text') {
             textTh.innerHTML = `<input type="text" class="col-filter-input cf-text" data-col="${idx}" placeholder="🔍 Search...">`;
-            rangeTh.innerHTML = '';
         } else if (ftype === 'num') {
             textTh.innerHTML = `<input type="text" class="col-filter-input cf-text" data-col="${idx}" placeholder="🔍 Search...">`;
             rangeTh.innerHTML = `<div class="range-wrap"><input type="number" class="col-filter-input cf-min" data-col="${idx}" placeholder="Min" step="any"><input type="number" class="col-filter-input cf-max" data-col="${idx}" placeholder="Max" step="any"></div>`;
-        } else {
-            textTh.innerHTML = '';
-            rangeTh.innerHTML = '';
         }
-        textRow.appendChild(textTh);
-        rangeRow.appendChild(rangeTh);
     });
 
-    headerRow.parentNode.appendChild(textRow);
-    headerRow.parentNode.appendChild(rangeRow);
+    // Filter Toggle Logic
+    const toggleBtn = document.getElementById('filter-toggle-btn');
+    toggleBtn.addEventListener('click', function() {
+        const isVisible = textRow.style.display !== 'none';
+        if (isVisible) {
+            textRow.style.display = 'none';
+            rangeRow.style.display = 'none';
+            this.style.backgroundColor = '#6366F1';
+        } else {
+            textRow.style.display = 'table-row';
+            rangeRow.style.display = 'table-row';
+            this.style.backgroundColor = '#4F46E5';
+        }
+        table.columns.adjust().draw();
+    });
 
     // Text search per column
     document.querySelectorAll('.cf-text').forEach(input => {

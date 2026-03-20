@@ -27,9 +27,8 @@
 
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
     <h1 class="page-title" style="margin-bottom: 0;">Organic Materials</h1>
-    <div>
-        <button id="om-batch-delete-btn" class="btn-primary" style="background-color: #EF4444; margin-right: 12px; display: none;">
-            <i class="fas fa-trash"></i> Delete Selected (<span id="om-selected-count">0</span>)
+        <button id="filter-toggle-btn" class="btn-primary" style="background-color: #6366F1; margin-right: 12px;">
+            <i class="fas fa-filter"></i> Filter
         </button>
         <button id="om-batch-import-btn" class="btn-primary" style="background-color: #10B981; margin-right: 12px;">
             <i class="fas fa-file-excel"></i> Batch Add (Excel Paste)
@@ -63,6 +62,30 @@
                 <th style="padding: 12px 16px; font-weight: 500;" data-filter="none">Images</th>
                 <th style="padding: 12px 16px; font-weight: 500;" data-filter="none">Raw Data</th>
                 <th style="padding: 12px 16px; font-weight: 500; text-align: right;" data-filter="none">Action</th>
+            </tr>
+            <tr class="filter-row-text" style="display: none; background-color: #F3F4F6;">
+                <th></th><th></th><th></th><th></th><th></th><th></th>
+                {% if slot_config %}
+                    {% if slot_config.slot_1_name %}<th></th>{% endif %}
+                    {% if slot_config.slot_2_name %}<th></th>{% endif %}
+                    {% if slot_config.slot_3_name %}<th></th>{% endif %}
+                    {% if slot_config.slot_4_name %}<th></th>{% endif %}
+                    {% if slot_config.slot_5_name %}<th></th>{% endif %}
+                {% endif %}
+                {% for key in custom_keys %}<th></th>{% endfor %}
+                <th></th><th></th><th></th>
+            </tr>
+            <tr class="filter-row-range" style="display: none; background-color: #F3F4F6;">
+                <th></th><th></th><th></th><th></th><th></th><th></th>
+                {% if slot_config %}
+                    {% if slot_config.slot_1_name %}<th></th>{% endif %}
+                    {% if slot_config.slot_2_name %}<th></th>{% endif %}
+                    {% if slot_config.slot_3_name %}<th></th>{% endif %}
+                    {% if slot_config.slot_4_name %}<th></th>{% endif %}
+                    {% if slot_config.slot_5_name %}<th></th>{% endif %}
+                {% endif %}
+                {% for key in custom_keys %}<th></th>{% endfor %}
+                <th></th><th></th><th></th>
             </tr>
         </thead>
         <tbody>
@@ -191,33 +214,46 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // === DataTables Init FIRST (before filter rows) ===
+    // === DataTables Init ===
     const table = $('#data-table').DataTable({
         pageLength: 25, order: [[5, "desc"]], orderCellsTop: true,
         columnDefs: [{ orderable: false, targets: [0, 4, -1, -2, -3] }],
         language: { search: "Global Search:" }
     });
 
-    // === Build filter rows dynamically AFTER DataTables init ===
+    // === Populate Filter Rows ===
     const headerRow = document.querySelector('#data-table thead tr:first-child');
     const ths = headerRow.querySelectorAll('th');
-    const textRow = document.createElement('tr'); textRow.className = 'filter-row-text';
-    const rangeRow = document.createElement('tr'); rangeRow.className = 'filter-row-range';
+    const textRow = document.querySelector('.filter-row-text');
+    const rangeRow = document.querySelector('.filter-row-range');
 
     ths.forEach((th, idx) => {
         const ft = th.dataset.filter || 'none';
-        const tTh = document.createElement('th'), rTh = document.createElement('th');
+        const tTh = textRow.cells[idx];
+        const rTh = rangeRow.cells[idx];
         if (ft === 'text') {
             tTh.innerHTML = `<input type="text" class="col-filter-input cf-text" data-col="${idx}" placeholder="🔍 Search...">`;
-            rTh.innerHTML = '';
         } else if (ft === 'num') {
             tTh.innerHTML = `<input type="text" class="col-filter-input cf-text" data-col="${idx}" placeholder="🔍 Search...">`;
             rTh.innerHTML = `<div class="range-wrap"><input type="number" class="col-filter-input cf-min" data-col="${idx}" placeholder="Min" step="any"><input type="number" class="col-filter-input cf-max" data-col="${idx}" placeholder="Max" step="any"></div>`;
-        } else { tTh.innerHTML = ''; rTh.innerHTML = ''; }
-        textRow.appendChild(tTh); rangeRow.appendChild(rTh);
+        }
     });
-    headerRow.parentNode.appendChild(textRow);
-    headerRow.parentNode.appendChild(rangeRow);
+
+    // === Filter Toggle Logic ===
+    const toggleBtn = document.getElementById('filter-toggle-btn');
+    toggleBtn.addEventListener('click', function() {
+        const isVisible = textRow.style.display !== 'none';
+        if (isVisible) {
+            textRow.style.display = 'none';
+            rangeRow.style.display = 'none';
+            this.style.backgroundColor = '#6366F1';
+        } else {
+            textRow.style.display = 'table-row';
+            rangeRow.style.display = 'table-row';
+            this.style.backgroundColor = '#4F46E5';
+        }
+        table.columns.adjust().draw();
+    });
 
     // Per-column text search
     document.querySelectorAll('.cf-text').forEach(input => {
