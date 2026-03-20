@@ -10,6 +10,8 @@ from django.dispatch import receiver
 class OrganicMaterial(models.Model):
     name = models.CharField(max_length=255)
     material_type = models.CharField(max_length=100)
+    cost_per_kg = models.FloatField(null=True, blank=True)
+    is_commercial = models.BooleanField(default=False)
     
     num_attr_1 = models.FloatField(null=True, blank=True)
     num_attr_2 = models.FloatField(null=True, blank=True)
@@ -25,22 +27,22 @@ class OrganicMaterial(models.Model):
         return self.name
 
 class OMImage(models.Model):
-    material = models.ForeignKey(OrganicMaterial, on_delete=models.CASCADE, related_name='images')
+    om = models.ForeignKey(OrganicMaterial, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to=get_om_image_path, validators=[validate_file_size, FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])])
     description = models.CharField(max_length=255, blank=True, help_text="Optional caption or description for the image")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Image for {self.material.name}"
+        return f"Image for {self.om.name}"
 
 class OMRawData(models.Model):
-    material = models.ForeignKey(OrganicMaterial, on_delete=models.CASCADE, related_name='raw_files')
+    om = models.ForeignKey(OrganicMaterial, on_delete=models.CASCADE, related_name='raw_files')
     file = models.FileField(upload_to=get_om_raw_data_path, validators=[validate_file_size, FileExtensionValidator(allowed_extensions=['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf', 'jpg', 'jpeg', 'png', 'txt'])])
     description = models.CharField(max_length=255, blank=True, help_text="Optional description for the uploaded file(s)")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Raw Data for {self.material.name}"
+        return f"Raw Data for {self.om.name}"
 
 @receiver(post_delete, sender=OMImage)
 def trash_om_image(sender, instance, **kwargs):
