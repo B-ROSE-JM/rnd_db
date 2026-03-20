@@ -191,8 +191,15 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // === Build filter rows dynamically ===
-    const headerRow = document.querySelector('#data-table thead tr');
+    // === DataTables Init FIRST (before filter rows) ===
+    const table = $('#data-table').DataTable({
+        pageLength: 25, order: [[5, "desc"]], orderCellsTop: true,
+        columnDefs: [{ orderable: false, targets: [0, 4, -1, -2, -3] }],
+        language: { search: "Global Search:" }
+    });
+
+    // === Build filter rows dynamically AFTER DataTables init ===
+    const headerRow = document.querySelector('#data-table thead tr:first-child');
     const ths = headerRow.querySelectorAll('th');
     const textRow = document.createElement('tr'); textRow.className = 'filter-row-text';
     const rangeRow = document.createElement('tr'); rangeRow.className = 'filter-row-range';
@@ -211,13 +218,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     headerRow.parentNode.appendChild(textRow);
     headerRow.parentNode.appendChild(rangeRow);
-
-    // === DataTables Init ===
-    const table = $('#data-table').DataTable({
-        pageLength: 25, order: [[5, "desc"]], orderCellsTop: true,
-        columnDefs: [{ orderable: false, targets: [0, 4, -1, -2, -3] }],
-        language: { search: "Global Search:" }
-    });
 
     // Per-column text search
     document.querySelectorAll('.cf-text').forEach(input => {

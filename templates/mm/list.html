@@ -164,8 +164,11 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // === Build filter rows ===
-    const headerRow = document.querySelector('#data-table thead tr');
+    // === DataTables Init FIRST ===
+    const table = $('#data-table').DataTable({ pageLength: 25, order: [[5,"desc"]], orderCellsTop: true, columnDefs: [{ orderable: false, targets: [0,4,-1,-2,-3] }], language: { search: "Global Search:" } });
+
+    // === Build filter rows AFTER DataTables ===
+    const headerRow = document.querySelector('#data-table thead tr:first-child');
     const ths = headerRow.querySelectorAll('th');
     const textRow = document.createElement('tr'); textRow.className = 'filter-row-text';
     const rangeRow = document.createElement('tr'); rangeRow.className = 'filter-row-range';
@@ -178,8 +181,6 @@ document.addEventListener('DOMContentLoaded', function () {
         textRow.appendChild(tTh); rangeRow.appendChild(rTh);
     });
     headerRow.parentNode.appendChild(textRow); headerRow.parentNode.appendChild(rangeRow);
-
-    const table = $('#data-table').DataTable({ pageLength: 25, order: [[5,"desc"]], orderCellsTop: true, columnDefs: [{ orderable: false, targets: [0,4,-1,-2,-3] }], language: { search: "Global Search:" } });
 
     document.querySelectorAll('.cf-text').forEach(i => { i.addEventListener('keyup', function() { table.column(+this.dataset.col).search(this.value).draw(); }); });
     document.querySelectorAll('.cf-min, .cf-max').forEach(i => { i.addEventListener('keyup', function() { table.draw(); }); i.addEventListener('change', function() { table.draw(); }); });

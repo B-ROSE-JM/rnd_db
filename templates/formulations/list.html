@@ -77,8 +77,15 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Build filter rows dynamically from data-filter attributes
-    const headerRow = document.querySelector('#data-table thead tr');
+    // Init DataTables FIRST (before filter rows)
+    const table = $('#data-table').DataTable({
+        pageLength: 25, order: [], orderCellsTop: true,
+        columnDefs: [{ orderable: false, targets: [1, -1] }],
+        language: { search: "Global Search:" }
+    });
+
+    // Build filter rows dynamically AFTER DataTables init
+    const headerRow = document.querySelector('#data-table thead tr:first-child');
     const ths = headerRow.querySelectorAll('th');
 
     const textRow = document.createElement('tr');
@@ -107,13 +114,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     headerRow.parentNode.appendChild(textRow);
     headerRow.parentNode.appendChild(rangeRow);
-
-    // Init DataTables
-    const table = $('#data-table').DataTable({
-        pageLength: 25, order: [], orderCellsTop: true,
-        columnDefs: [{ orderable: false, targets: [1, -1] }],
-        language: { search: "Global Search:" }
-    });
 
     // Text search per column
     document.querySelectorAll('.cf-text').forEach(input => {
