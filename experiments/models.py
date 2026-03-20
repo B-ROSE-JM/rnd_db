@@ -5,6 +5,7 @@ import jsonfield
 class Experiment(models.Model):
     formulation = models.ForeignKey(Formulation, on_delete=models.CASCADE, related_name='experiments', help_text="The mixture/formulation tested.")
     test_type = models.CharField(max_length=100, help_text="e.g. Tensile Strength Test, Density Measurement")
+    evaluation_date = models.CharField(max_length=8, blank=True, default='', help_text="YY-MM-DD format")
     
     conditions = jsonfield.JSONField(default=dict, blank=True, help_text="Dynamic conditions like RPM, Temp, etc.")
     results = jsonfield.JSONField(default=dict, blank=True, help_text="Dynamic results like Yield, Viscosity, etc.")

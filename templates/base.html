@@ -131,6 +131,40 @@
             margin-bottom: 24px;
         }
 
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .page-header-copy {
+            min-width: 0;
+        }
+
+        .page-description {
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .card-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: #FCFCFD;
+        }
+
         .btn-primary {
             background-color: var(--primary-color);
             color: white;
@@ -145,6 +179,38 @@
 
         .btn-primary:hover {
             background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: #6366F1;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-secondary:hover {
+            background-color: #4F46E5;
+        }
+
+        .btn-success {
+            background-color: #10B981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background-color 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-success:hover {
+            background-color: #059669;
         }
     </style>
     <!-- Chart.js -->

@@ -25,19 +25,25 @@
     .batch-table .row-num { background: #F9FAFB; color: #9CA3AF; text-align: center; width: 36px; font-size: 0.75rem; padding: 7px 6px; }
 </style>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-    <h1 class="page-title" style="margin-bottom: 0;">Organic Materials</h1>
-        <button id="filter-toggle-btn" class="btn-primary" style="background-color: #6366F1; margin-right: 12px;">
-            <i class="fas fa-filter"></i> Filter
-        </button>
-        <button id="om-batch-import-btn" class="btn-primary" style="background-color: #10B981; margin-right: 12px;">
-            <i class="fas fa-file-excel"></i> Batch Add (Excel Paste)
-        </button>
+<div class="page-header">
+    <div class="page-header-copy">
+        <h1 class="page-title" style="margin-bottom: 0;">Organic Materials</h1>
+        <p class="page-description">Manage organic material records, search slots, and attached source files.</p>
+    </div>
+    <div class="page-actions">
         <a href="{% url 'om:add' %}" class="btn-primary">+ Add Organic Material</a>
     </div>
 </div>
 
 <div class="card" style="padding: 0; overflow: hidden;">
+    <div class="card-toolbar">
+        <button id="filter-toggle-btn" class="btn-secondary">
+            <i class="fas fa-filter"></i> Filter
+        </button>
+        <button id="om-batch-import-btn" class="btn-success">
+            <i class="fas fa-file-excel"></i> Batch Add (Excel Paste)
+        </button>
+    </div>
     <table id="data-table" class="display" style="width: 100%; border-collapse: collapse; text-align: left;">
         <thead style="background-color: #F9FAFB; color: var(--text-muted); font-size: 0.875rem; border-bottom: 1px solid var(--border-color);">
             <tr>

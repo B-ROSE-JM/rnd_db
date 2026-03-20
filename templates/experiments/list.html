@@ -17,18 +17,20 @@
     .range-wrap input { width: 50%; min-width: 0; text-align: center; }
 </style>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-    <div>
+<div class="page-header">
+    <div class="page-header-copy">
         <h1 class="page-title" style="margin-bottom: 0;">Experimental Data</h1>
-        <p style="color: var(--text-muted); margin-top: 8px;">Log test results and upload raw CSV data tied to specific formulations.</p>
+        <p class="page-description">Log test results and upload raw CSV data tied to specific formulations.</p>
     </div>
-    <a href="{% url 'experiments:add' %}" class="btn-primary">+ Log Experiment</a>
+    <div class="page-actions">
+        <a href="{% url 'experiments:add' %}" class="btn-primary">+ Log Experiment</a>
+    </div>
 </div>
 
 <div class="card" style="padding: 0; overflow: hidden;">
     <form id="compare-form" method="GET" action="{% url 'experiments:compare' %}">
-        <div style="display: flex; justify-content: flex-end; padding: 12px 24px; gap: 12px;">
-            <button type="button" id="filter-toggle-btn" class="btn-primary" style="background-color: #6366F1; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.875rem;">
+        <div class="card-toolbar">
+            <button type="button" id="filter-toggle-btn" class="btn-secondary">
                 <i class="fas fa-filter" style="margin-right: 8px;"></i> Filter
             </button>
             <button type="submit" id="compare-btn" disabled
@@ -119,12 +121,16 @@
                         <a href="{% url 'experiments:delete' exp.id %}" style="color: #EF4444; text-decoration: none; font-size: 0.875rem;" onclick="return confirm('Delete this experiment?');">Delete</a>
                     </td>
                 </tr>
-                {% empty %}
-                <tr><td colspan="100%" style="padding: 32px; text-align: center; color: var(--text-muted);">No experiments logged yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </form>
+
+    {% if not experiments %}
+    <div style="padding: 32px; text-align: center; color: var(--text-muted); border-top: 1px solid var(--border-color);">
+        No experiments logged yet.
+    </div>
+    {% endif %}
 
     <script>
     document.addEventListener('DOMContentLoaded', function () {

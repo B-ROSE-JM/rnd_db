@@ -20,6 +20,14 @@
 
         <!-- Formulation Setup -->
         <div style="margin-bottom: 32px;">
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">Evaluation Date</label>
+                <input type="text" name="evaluation_date" id="evaluation_date_input" maxlength="8"
+                    value="{% if form_data %}{{ form_data.evaluation_date|default:'' }}{% elif experiment %}{{ experiment.evaluation_date|default:'' }}{% else %}{{ evaluation_date|default:'' }}{% endif %}"
+                    style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
+                    placeholder="YYMMDD or YY-MM-DD" inputmode="numeric">
+            </div>
+
             <h3 style="margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">1.
                 Select Target Formulation</h3>
             <div style="margin-bottom: 16px;">
@@ -40,7 +48,7 @@
             <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">Test Type /
                     Category</label>
-                <input type="text" name="test_type" required value="{{ experiment.test_type|default:'' }}"
+                <input type="text" name="test_type" required value="{% if form_data %}{{ form_data.test_type|default:'' }}{% else %}{{ experiment.test_type|default:'' }}{% endif %}"
                     style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
                     placeholder="e.g. Tensile Strength Test, Viscosity Check">
             </div>
@@ -48,7 +56,7 @@
                 <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">SOP / Memo / Observations</label>
                 <textarea name="memo" rows="4"
                     style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
-                    placeholder="Enter Standard Operating Procedures (SOP), detailed observations, or notes...">{{ experiment.memo|default:'' }}</textarea>
+                    placeholder="Enter Standard Operating Procedures (SOP), detailed observations, or notes...">{% if form_data %}{{ form_data.memo|default:'' }}{% else %}{{ experiment.memo|default:'' }}{% endif %}</textarea>
             </div>
         </div>
 
@@ -200,6 +208,28 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        function bindShortDateFormatter(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+
+            const formatValue = () => {
+                const digits = input.value.replace(/\D/g, '').slice(0, 6);
+                if (digits.length >= 5) {
+                    input.value = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 6)}`;
+                } else if (digits.length >= 3) {
+                    input.value = `${digits.slice(0, 2)}-${digits.slice(2, 4)}`;
+                } else {
+                    input.value = digits;
+                }
+            };
+
+            input.addEventListener('input', formatValue);
+            input.addEventListener('blur', formatValue);
+            formatValue();
+        }
+
+        bindShortDateFormatter('evaluation_date_input');
+
         // --- 1. Conditions Builder ---
         const condContainer = document.getElementById('conditions-container');
         const condEmptyState = document.getElementById('cond-empty-state');

@@ -21,9 +21,17 @@
                 Recipe Details</h3>
 
             <div style="margin-bottom: 16px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">Manufacture Date</label>
+                <input type="text" name="manufacture_date" id="manufacture_date_input" maxlength="8"
+                    value="{% if form_data %}{{ form_data.manufacture_date|default:'' }}{% elif formulation %}{{ formulation.manufacture_date|default:'' }}{% else %}{{ manufacture_date|default:'' }}{% endif %}"
+                    style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
+                    placeholder="YYMMDD or YY-MM-DD" inputmode="numeric">
+            </div>
+
+            <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">Formulation
                     Name</label>
-                <input type="text" name="name" required value="{{ formulation.name|default:'' }}"
+                <input type="text" name="name" required value="{% if form_data %}{{ form_data.name|default:'' }}{% else %}{{ formulation.name|default:'' }}{% endif %}"
                     style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
                     placeholder="e.g. Masterbatch V2">
             </div>
@@ -33,14 +41,14 @@
                     style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">Description</label>
                 <textarea name="description" rows="3"
                     style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
-                    placeholder="Brief description of this mixture's purpose">{{ formulation.description|default:'' }}</textarea>
+                    placeholder="Brief description of this mixture's purpose">{% if form_data %}{{ form_data.description|default:'' }}{% else %}{{ formulation.description|default:'' }}{% endif %}</textarea>
             </div>
             
             <div style="margin-bottom: 16px;">
                 <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 0.875rem;">SOP / Mixing Instructions / Memo</label>
                 <textarea name="memo" rows="4"
                     style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px;"
-                    placeholder="Enter detailed mixing instructions, SOPs, or general notes...">{{ formulation.memo|default:'' }}</textarea>
+                    placeholder="Enter detailed mixing instructions, SOPs, or general notes...">{% if form_data %}{{ form_data.memo|default:'' }}{% else %}{{ formulation.memo|default:'' }}{% endif %}</textarea>
             </div>
         </div>
 
@@ -153,6 +161,28 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        function bindShortDateFormatter(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+
+            const formatValue = () => {
+                const digits = input.value.replace(/\D/g, '').slice(0, 6);
+                if (digits.length >= 5) {
+                    input.value = `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 6)}`;
+                } else if (digits.length >= 3) {
+                    input.value = `${digits.slice(0, 2)}-${digits.slice(2, 4)}`;
+                } else {
+                    input.value = digits;
+                }
+            };
+
+            input.addEventListener('input', formatValue);
+            input.addEventListener('blur', formatValue);
+            formatValue();
+        }
+
+        bindShortDateFormatter('manufacture_date_input');
+
         // --- 1. Materials/Ingredients Builder ---
         const matContainer = document.getElementById('ingredients-container');
         const matEmptyState = document.getElementById('mat-empty-state');

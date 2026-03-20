@@ -3,6 +3,17 @@ from django.contrib import messages
 from .models import Formulation, FormulationIngredient
 from materials.models import Material
 
+
+def _normalize_short_date(raw_value):
+    value = (raw_value or '').strip()
+    if not value:
+        return ''
+
+    digits = ''.join(ch for ch in value if ch.isdigit())
+    if len(digits) != 6:
+        raise ValueError('Manufacture date must be entered as YYMMDD or YY-MM-DD.')
+    return f'{digits[:2]}-{digits[2:4]}-{digits[4:6]}'
+
 def formulation_list(request):
     formulations = Formulation.objects.prefetch_related('ingredients__material').all().order_by('-created_at')
     
@@ -22,6 +33,25 @@ def formulation_list(request):
 def formulation_add(request):
     if request.method == 'POST':
         name = request.POST.get('name')
+        try:
+            manufacture_date = _normalize_short_date(request.POST.get('manufacture_date'))
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            manufacture_date = request.POST.get('manufacture_date', '')
+            materials = Material.objects.all()
+            all_cond_keys = set()
+            for form in Formulation.objects.all():
+                if isinstance(form.conditions, dict):
+                    all_cond_keys.update(form.conditions.keys())
+            cond_fields = []
+            for k in sorted(list(all_cond_keys)):
+                cond_fields.append({'key': k, 'val': '', 'type': 'number'})
+            return render(request, 'formulations/form.html', {
+                'materials': materials,
+                'cond_fields': cond_fields,
+                'manufacture_date': manufacture_date,
+                'form_data': request.POST,
+            })
         description = request.POST.get('description', '')
         
         # Handle dynamic conditions
@@ -41,6 +71,7 @@ def formulation_add(request):
         memo = request.POST.get('memo', '')
         formulation = Formulation.objects.create(
             name=name,
+            manufacture_date=manufacture_date,
             description=description,
             conditions=conditions_dict,
             memo=memo
@@ -77,7 +108,8 @@ def formulation_add(request):
     
     return render(request, 'formulations/form.html', {
         'materials': materials,
-        'cond_fields': cond_fields
+        'cond_fields': cond_fields,
+        'manufacture_date': '',
     })
 
 def formulation_edit(request, pk):
@@ -85,6 +117,39 @@ def formulation_edit(request, pk):
 
     if request.method == 'POST':
         formulation.name = request.POST.get('name')
+        try:
+            formulation.manufacture_date = _normalize_short_date(request.POST.get('manufacture_date'))
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            materials = Material.objects.all()
+            ingredients_data = []
+            for ing in formulation.ingredients.all():
+                options_html = '<option value="">Select a material...</option>'
+                for mat in materials:
+                    selected = ' selected' if ing.material_id == mat.id else ''
+                    options_html += '<option value="{}"{}>{} ({})</option>'.format(
+                        mat.id, selected, mat.name, mat.material_type
+                    )
+                ingredients_data.append({
+                    'options_html': options_html,
+                    'ratio': ing.ratio_or_amount,
+                    'unit': ing.unit,
+                })
+            all_cond_keys = set()
+            for form in Formulation.objects.all():
+                if isinstance(form.conditions, dict):
+                    all_cond_keys.update(form.conditions.keys())
+            cond_fields = []
+            for k in sorted(list(all_cond_keys)):
+                val = formulation.conditions.get(k, '') if isinstance(formulation.conditions, dict) else ''
+                val_type = 'number' if isinstance(val, (int, float)) else 'text'
+                cond_fields.append({'key': k, 'val': val, 'type': val_type})
+            return render(request, 'formulations/form.html', {
+                'formulation': formulation,
+                'materials': materials,
+                'cond_fields': cond_fields,
+                'ingredients_data': ingredients_data,
+            })
         formulation.description = request.POST.get('description', '')
         
         # Handle dynamic conditions

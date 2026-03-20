@@ -19,20 +19,22 @@
     .range-wrap input { width: 50%; min-width: 0; text-align: center; }
 </style>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-    <div>
+<div class="page-header">
+    <div class="page-header-copy">
         <h1 class="page-title" style="margin-bottom: 0;">Formulations & Conditions</h1>
-        <p style="color: var(--text-muted); margin-top: 8px;">Manage mixtures and recipes composed of raw materials.</p>
+        <p class="page-description">Manage mixtures and recipes composed of raw materials.</p>
     </div>
-    <div style="display: flex; gap: 12px; align-items: center;">
-        <button type="button" id="filter-toggle-btn" class="btn-primary" style="background-color: #6366F1;">
-            <i class="fas fa-filter" style="margin-right: 8px;"></i> Filter
-        </button>
+    <div class="page-actions">
         <a href="{% url 'formulations:add' %}" class="btn-primary">+ Add Formulation</a>
     </div>
 </div>
 
 <div class="card" style="padding: 0; overflow: hidden;">
+    <div class="card-toolbar">
+        <button type="button" id="filter-toggle-btn" class="btn-secondary">
+            <i class="fas fa-filter" style="margin-right: 8px;"></i> Filter
+        </button>
+    </div>
     <table id="data-table" class="display" style="width: 100%; border-collapse: collapse; text-align: left;">
         <thead style="background-color: #F9FAFB; color: var(--text-muted); font-size: 0.875rem; border-bottom: 1px solid var(--border-color);">
             <tr>

@@ -5,6 +5,17 @@ from .models import Experiment, ExperimentImage, ExperimentRawData
 from formulations.models import Formulation
 import csv
 
+
+def _normalize_short_date(raw_value):
+    value = (raw_value or '').strip()
+    if not value:
+        return ''
+
+    digits = ''.join(ch for ch in value if ch.isdigit())
+    if len(digits) != 6:
+        raise ValueError('Evaluation date must be entered as YYMMDD or YY-MM-DD.')
+    return f'{digits[:2]}-{digits[2:4]}-{digits[4:6]}'
+
 def experiment_list(request):
     query = request.GET.get('q', '').strip()
     
@@ -38,6 +49,31 @@ def experiment_add(request):
     if request.method == 'POST':
         formulation_id = request.POST.get('formulation_id')
         test_type = request.POST.get('test_type')
+        try:
+            evaluation_date = _normalize_short_date(request.POST.get('evaluation_date'))
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            formulations = Formulation.objects.all()
+            all_cond_keys = set()
+            all_res_keys = set()
+            for exp in Experiment.objects.all():
+                if isinstance(exp.conditions, dict):
+                    all_cond_keys.update(exp.conditions.keys())
+                if isinstance(exp.results, dict):
+                    all_res_keys.update(exp.results.keys())
+            cond_fields = []
+            for k in sorted(list(all_cond_keys)):
+                cond_fields.append({'key': k, 'val': '', 'type': 'text'})
+            res_fields = []
+            for k in sorted(list(all_res_keys)):
+                res_fields.append({'key': k, 'val': '', 'type': 'text'})
+            return render(request, 'experiments/form.html', {
+                'formulations': formulations,
+                'cond_fields': cond_fields,
+                'res_fields': res_fields,
+                'evaluation_date': request.POST.get('evaluation_date', ''),
+                'form_data': request.POST,
+            })
         
         # Handle dynamic conditions
         conditions_dict = {}
@@ -71,6 +107,7 @@ def experiment_add(request):
         experiment = Experiment.objects.create(
             formulation_id=formulation_id,
             test_type=test_type,
+            evaluation_date=evaluation_date,
             conditions=conditions_dict,
             results=results_dict,
             memo=memo
@@ -117,7 +154,8 @@ def experiment_add(request):
     return render(request, 'experiments/form.html', {
         'formulations': formulations,
         'cond_fields': cond_fields,
-        'res_fields': res_fields
+        'res_fields': res_fields,
+        'evaluation_date': '',
     })
 
 
@@ -166,6 +204,62 @@ def experiment_edit(request, pk):
     if request.method == 'POST':
         experiment.formulation_id = request.POST.get('formulation_id')
         experiment.test_type = request.POST.get('test_type')
+        try:
+            experiment.evaluation_date = _normalize_short_date(request.POST.get('evaluation_date'))
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            formulations = Formulation.objects.all()
+            all_cond_keys = set()
+            all_res_keys = set()
+            for exp in Experiment.objects.all():
+                if isinstance(exp.conditions, dict):
+                    all_cond_keys.update(exp.conditions.keys())
+                if isinstance(exp.results, dict):
+                    all_res_keys.update(exp.results.keys())
+            cond_fields = []
+            for k in sorted(list(all_cond_keys)):
+                val = experiment.conditions.get(k, '') if isinstance(experiment.conditions, dict) else ''
+                input_type = 'number' if isinstance(val, (int, float)) and val != '' else 'text'
+                cond_fields.append({'key': k, 'val': val, 'type': input_type})
+            res_fields = []
+            for k in sorted(list(all_res_keys)):
+                val = experiment.results.get(k, '') if isinstance(experiment.results, dict) else ''
+                input_type = 'number' if isinstance(val, (int, float)) and val != '' else 'text'
+                res_fields.append({'key': k, 'val': val, 'type': input_type})
+            existing_images_html = ''
+            for i, img in enumerate(experiment.images.all()):
+                checked = 'checked' if img.is_representative else ''
+                existing_images_html += (
+                    '<div style="display: flex; gap: 12px; align-items: center; padding: 8px; '
+                    'border: 1px solid var(--border-color); border-radius: 6px; background-color: white;">'
+                    '<img src="{}" style="height: 40px; border-radius: 4px;">'
+                    '<span style="flex: 1; font-size: 0.875rem; color: var(--text-main);">Image #{}</span>'
+                    '<label style="color: #047857; font-size: 0.875rem; display: flex; align-items: center; gap: 4px; cursor: pointer; margin-right: 12px;">'
+                    '<input type="checkbox" name="representative_image_ids[]" value="{}" {}> ????대?吏 吏??'
+                    '</label>'
+                    '<label style="color: #EF4444; font-size: 0.875rem; display: flex; align-items: center; gap: 4px; cursor: pointer;">'
+                    '<input type="checkbox" name="delete_image_ids[]" value="{}"> Delete'
+                    '</label></div>'
+                ).format(img.image.url, i + 1, img.id, checked, img.id)
+            existing_raw_html = ''
+            for rf in experiment.raw_files.all():
+                existing_raw_html += (
+                    '<div style="display: flex; gap: 12px; align-items: center; padding: 8px; '
+                    'border: 1px solid var(--border-color); border-radius: 6px; background-color: white;">'
+                    '<i class="fas fa-file-csv" style="color: #10B981; font-size: 1.5rem;"></i>'
+                    '<span style="flex: 1; font-size: 0.875rem; color: var(--text-main);">{}</span>'
+                    '<label style="color: #EF4444; font-size: 0.875rem; display: flex; align-items: center; gap: 4px; cursor: pointer;">'
+                    '<input type="checkbox" name="delete_raw_ids[]" value="{}"> Delete'
+                    '</label></div>'
+                ).format(rf.file.name, rf.id)
+            return render(request, 'experiments/form.html', {
+                'experiment': experiment,
+                'formulations': formulations,
+                'cond_fields': cond_fields,
+                'res_fields': res_fields,
+                'existing_images_html': existing_images_html,
+                'existing_raw_html': existing_raw_html,
+            })
         
         # Handle dynamic conditions
         conditions_dict = {}

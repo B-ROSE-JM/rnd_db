@@ -4,6 +4,7 @@ import jsonfield
 
 class Formulation(models.Model):
     name = models.CharField(max_length=255)
+    manufacture_date = models.CharField(max_length=8, blank=True, default='', help_text="YY-MM-DD format")
     description = models.TextField(blank=True, default='')
     conditions = jsonfield.JSONField(default=dict, blank=True, help_text="Mixing conditions like RPM, Temp, etc.")
     memo = models.TextField(blank=True, default='', help_text="Mixing instructions, SOP, or general notes")
